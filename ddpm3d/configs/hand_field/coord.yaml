@@ -1,0 +1,5 @@
+name: coord
+
+tsdf: 0.2
+std: 0.2 
+ndim: 45

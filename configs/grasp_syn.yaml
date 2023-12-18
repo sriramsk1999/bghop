@@ -1,0 +1,45 @@
+defaults:
+  - environment: grogu_judy
+
+output: ${environment.output}
+
+grasp_dir: /home/yufeiy2/scratch/result/GenGrasps/HO3D
+save_index: grasp
+save_dir: ${output}/${load_index}/${save_index}
+
+load_dir:  finetune_thick # thicker_prior
+load_name:  attr
+load_index: ${load_dir}/${load_name}
+load_pt: ${output}/${load_index}/checkpoints/last.ckpt
+
+T: 500
+seed: 123
+
+sd_para: 
+  min_step: 0.25
+  max_step: 0.75
+  anneal_noise: adaptive
+  guidance_scale: 4
+  prediction_respacing: 100
+  grad_clip_val: 0.5
+  grad_mode: xstart_onestep
+  wgt_method: idty
+
+loss:
+  w_spatial: False # spatially adjusted weight TODOs
+  w_hand: 10.  
+  w_schdl: bell
+  total_step: -1
+
+  w_pen: 1.
+  w_miss: 1.
+  w_damp: 10.
+  
+
+index: null
+
+sds_grasp: True
+refine_grasp: True
+
+num: -1
+S: 2

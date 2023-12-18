@@ -1,0 +1,5 @@
+hoi4d:
+  target: hoi4d
+  name: hoi4d_3d
+  data_dir: ${environment.data_dir}/HOI4D/
+  split: all_contact_train_hand

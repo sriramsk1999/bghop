@@ -1,0 +1,17 @@
+defaults:
+  - environment: grogu_judy
+
+output: ${environment.output}
+project_name: 'vis_ddpm3d'
+
+vis_dir: ${output}/${load_index}/vis
+
+S: 5
+
+load_dir: finetune_thick # thicker_prior
+load_name:  attr  # joint 
+load_index: ${load_dir}/${load_name}
+load_pt: ${output}/${load_index}/checkpoints/last.ckpt
+
+seed: 123
+cat_list: mug+knife+bowl+camera+hammer+wrench+binoculars+flashlight+headphone+mouse+box++scissors+game controller+can+apple+phone+toothpaste+teapot+donut+kettle+fryingpan+toothbrush+door knob+light bulb+pen+alarm clock+toy airplane+elephant+duck+watch+pitcher+power drill+clamp+spray+spoon+book+screw driver+pliers+plate+spatula+fork+laptop+tablet+peach+ruler+shoe+marbles+orange+microphone+pear+eraser+jar+stick+bucket+pillow+pencil mode+skillet lid+hair dryer+keyboard+power saw+scoop+teddy bear+wine glass

@@ -1,0 +1,11 @@
+multirun/
+**/.ipynb_checkpoints/
+outputs/
+core
+logs/
+logs
+.spyproject/
+.vscode/
+logs/
+**/__pycache__
+*.pyc
