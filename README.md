@@ -15,7 +15,8 @@ Yufei Ye, Abhinav Gupta, Kris Kitani, Shubham Tulsiani
 
 These path variables can be specified at `configs/environment/grogu_judy.yaml` (Even better practice is to create your own file `my_own.yaml` and append `environment=my_own` to the command in terminal)
 
-Here is the folder structure that our code assumes. 
+<details>
+  <summary>Here is the folder structure that our code assumes.</summary>
 ```
 ${environment.output}/
   # pretrained diffusion model
@@ -34,6 +35,7 @@ ${environment.output}/
       config.yaml
     Mug_2/
     ...
+</details>
 
 
 # preprocessed data
