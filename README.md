@@ -17,52 +17,52 @@ These path variables can be specified at `configs/environment/grogu_judy.yaml` (
 
 <details>
   <summary>Here is the folder structure that our code assumes.</summary>
-```
-${environment.output}/
-  # pretrained diffusion model
-  joint_3dprior/
-    mix_data/
-      checkpoints/
-      config.yaml
-    hoi4d/
-      checkpoints/
-      config.yaml
   
-  # Our test-time optimization results
-  hoi4d/
-    Mug_1/
-      ckpts/
-      config.yaml
-    Mug_2/
+  ```
+  ${environment.output}/
+    # pretrained diffusion model
+    joint_3dprior/
+      mix_data/
+        checkpoints/
+        config.yaml
+      hoi4d/
+        checkpoints/
+        config.yaml
+    
+    # Our test-time optimization results
+    hoi4d/
+      Mug_1/
+        ckpts/
+        config.yaml
+      Mug_2/
+      ...
+
+  # preprocessed data
+  ${envionment.data_dir}/
+    # preprocessed data for video reconstruction
+    HOI4D_clip/
+      Mug_1/
+        image/
+        mocap/
+        ....
+      Mug_2/
+      ...
+    # preprocessed data for grasp synthesis
+    HO3D_Grasp/  
+      003_cracker_box/
+        obj.txt 
+        oObj.obj 
+        uSdf.npz
+      ...
+
+
+  # MANO
+  ${environment.mano_dir}/
+    MANO_RIGHT.pkl
+    MANO_UV_right.obj
     ...
-</details>
-
-
-# preprocessed data
-${envionment.data_dir}/
-  # preprocessed data for video reconstruction
-  HOI4D_clip/
-    Mug_1/
-      image/
-      mocap/
-      ....
-    Mug_2/
-    ...
-  # preprocessed data for grasp synthesis
-  HO3D_Grasp/  
-    003_cracker_box/
-      obj.txt 
-      oObj.obj 
-      uSdf.npz
-    ...
-
-
-# MANO
-${environment.mano_dir}/
-  MANO_RIGHT.pkl
-  MANO_UV_right.obj
-  ...
-```
+  ```
+  </details>
 
 ## Inference
 ### Sample Hand-Object Interactions
