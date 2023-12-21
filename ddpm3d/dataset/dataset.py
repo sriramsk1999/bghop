@@ -2,12 +2,15 @@
 # Written by Yufei Ye (https://github.com/JudyYe)
 # --------------------------------------------------------
 import importlib
-import torch
-from typing import Iterable, List
 import warnings
+from typing import Iterable, List
+
+import torch
 from torch.utils.data import ConcatDataset, DataLoader, Dataset, IterableDataset
+
+from utils.train_util import get_rank, get_world_size
+
 from .text_sdf import TextSdfDataset
-from utils.train_util import get_world_size, get_rank
 
 
 class BalancedDataset(Dataset):

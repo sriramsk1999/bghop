@@ -52,7 +52,10 @@ class BaseAutoencoder(pl.LightningModule):
         super().__init__(*args, **kwargs)
         self.cfg = cfg
         self.viz = Visualizer(cfg, self.log_dir)
-        self.hand_cond = build_hand_field(cfg.get("field", "none"), cfg)
+        # self.hand_cond = build_hand_field(cfg.get("field", "none"), cfg)
+        # self.hand_dim = hand_dim = self.hand_cond.ndim
+        
+        self.hand_cond = build_hand_field('none', cfg)
         self.hand_dim = hand_dim = self.hand_cond.ndim
 
         self.register_buffer("mean", torch.zeros([1, 1 + hand_dim, 1, 1, 1]))
@@ -138,8 +141,6 @@ class BaseAutoencoder(pl.LightningModule):
             batch["nSdf"] = nSdf
             batch["nXyz"] = nXyz
             batch["offset"] = offset
-            if self.cfg.get("rep", "sdf") == "occ":
-                batch["nSdf"] = (batch["nSdf"] < 0).float() * 2 - 1  # [-1, 1]
 
         image = batch["nSdf"]
         if self.cfg.tsdf is not None:

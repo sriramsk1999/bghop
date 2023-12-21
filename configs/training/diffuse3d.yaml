@@ -1,0 +1,41 @@
+beta_init: 0.1
+speed_factor: 10.0
+
+query_full_vol: True
+
+lr: 
+  model: 5.0e-4
+  pose: 5.e-4
+  focal: 1.e-5
+  oTh: 1.0e-5
+  text: 1.0e-3
+
+w_eikonal: 1
+w_mask: 10. 
+
+w_t_hand: 100. # 100. 
+w_t_hand_i: 0.01 # 100. 
+w_t_hand_j: 100. # 100. 
+w_t_hand_c: 100. # 100. 
+
+w_contour: 10. # 10. 
+w_hand_mask: 1 # 0. # 1.
+w_diffuse: 5000   # diffusion model
+
+clip: 100
+
+fg: 1
+occ_mask: label  # union | indp | label? 
+label_prob: 1
+
+
+num_iters: 15000
+scheduler:
+  type: exponential_step
+  min_factor: 0.1
+
+ckpt_file: null # will be read by python as None
+ckpt_ignore_keys: []     # only change if you want to drop certain keys in the saved checkpionts.
+ckpt_only_use_keys: null # only change if you want to only use certain keys in the saved checkpionts.
+
+warmup: 100

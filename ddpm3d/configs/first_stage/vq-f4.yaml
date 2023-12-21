@@ -1,0 +1,28 @@
+name: vq-f4
+# module: ddpm3d.models.autoencoder
+# model: VQModel
+target: ddpm3d.models.autoencoder.VQModel #${first_stage.module}.${first_stage.model}
+
+params:
+  embed_dim: 3
+  n_embed: 8192
+  monitor: val/loss_rec
+  ddconfig:
+    double_z: false  
+    z_channels: 3
+    resolution: 64 
+    in_channels: 1
+    out_ch: 1
+    ch: 64
+    ch_mult:
+    - 1
+    - 2
+    - 4
+    num_res_blocks: 1
+    attn_resolutions: []
+    dropout: 0.0
+
+  lossconfig:
+    target: taming.modules.losses.vqperceptual.VQLPIPSWithDiscriminator
+    params:
+      codebook_weight: 1.0

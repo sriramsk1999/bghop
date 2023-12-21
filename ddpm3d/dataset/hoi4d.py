@@ -1,14 +1,20 @@
+# --------------------------------------------------------
+# Written by Yufei Ye (https://github.com/JudyYe)
+# --------------------------------------------------------
 # TODO: clear file
-from scipy.spatial.transform import Rotation as Rt
+import os.path as osp
 import pickle
-from tqdm import tqdm
+from functools import partial
+
 import numpy as np
 import pandas
 import torch
-import os.path as osp
-from functools import partial
-from .data_utils import make_cache_fast, get_nXyz_sdf
 from jutils import geom_utils, hand_utils
+from scipy.spatial.transform import Rotation as Rt
+from tqdm import tqdm
+
+from .data_utils import get_nXyz_sdf, make_cache_fast
+
 
 def parse_data(data_dir, split, data_cfg, args):
     """_summary_
@@ -42,7 +48,7 @@ def parse_data(data_dir, split, data_cfg, args):
     meta['uTo'] = {}
     meta['uSdf']  = {}
 
-    hand_wrapper = hand_utils.ManopthWrapper().to('cpu')
+    hand_wrapper = hand_utils.ManopthWrapper(args.environment.mano_dir).to('cpu')
     hand_mean = hand_wrapper.hand_mean
 
     set_dir =  osp.join(data_dir, f'Sets/{split}.csv')
@@ -89,7 +95,7 @@ def parse_data(data_dir, split, data_cfg, args):
     
     print('text set #', len(set(text_list)))
     meta['cfg'] = args
-    meta['hand_wrapper'] = hand_utils.ManopthWrapper().to('cpu')
+    meta['hand_wrapper'] = hand_utils.ManopthWrapper(args.environment.mano_dir).to('cpu')
 
     print('parsing data done!')
 

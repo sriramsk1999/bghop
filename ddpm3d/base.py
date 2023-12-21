@@ -47,7 +47,7 @@ class BaseModule(pl.LightningModule):
         self.train_batch = None
         self.log_dir = osp.join(cfg.exp_dir, "log")
 
-        self.hand_wrapper = hand_utils.ManopthWrapper()
+        self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir)
 
     def train_dataloader(self):
         cfg = self.cfg
@@ -245,7 +245,7 @@ class BaseModule(pl.LightningModule):
             progress=True,
             model_kwargs=model_kwargs,
             cond_fn=None,
-            hijack=hijack,
+            # hijack=hijack,
         )[:batch_size]
         return samples, []
 
@@ -363,8 +363,14 @@ def main_worker(cfg):
     module = importlib.import_module(cfg.model.module)
     model_cls = getattr(module, cfg.model.model)
     model = model_cls(cfg)
+    
+    # initialize ae
     if osp.exists(cfg.ckpt):
         model = model_utils.load_from_checkpoint(cfg.ckpt, cfg=cfg)
+    else:
+        # load only first stage
+        model_utils.load_my_state_dict(model.ae, torch.load(cfg.model.first_stage.ckpt_path)['state_dict'], lambda x: f'model.{x}')
+
     if cfg.model.freeze_transformer:
         model_utils.freeze(model.glide_model.text_cond_model)
     # model.cuda()

@@ -1,12 +1,16 @@
-from copy import deepcopy
-import numpy as np
+# --------------------------------------------------------
+# Written by Yufei Ye (https://github.com/JudyYe)
+# --------------------------------------------------------
+import multiprocessing
 import os
 import os.path as osp
-import torch
-from tqdm import tqdm
-import multiprocessing
 import pickle
-from jutils import hand_utils, geom_utils, mesh_utils
+from copy import deepcopy
+
+import numpy as np
+import torch
+from jutils import geom_utils, hand_utils, mesh_utils
+from tqdm import tqdm
 
 
 def get_nXyz_sdf(index, ind, meta, get_anno_fn, hA=None, hTo=None, **kwargs):

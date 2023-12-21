@@ -5,6 +5,8 @@ grad_clip: 10.
 first_stage:
   ckpt_path: ${output}/ae_hand_field/x4_vq-f4_none_z3/checkpoints/last.ckpt
 
+
+
 diffuse: 
   diffusion_steps: 1000
   noise_schedule: "linear"

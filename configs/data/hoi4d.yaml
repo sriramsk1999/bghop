@@ -1,0 +1,17 @@
+type: HOI
+data_dir: ${environment.data_dir}/HOI4D_clip/${data.index}
+cat: Mug 
+ind: 1
+index: ${data.cat}_${data.ind}
+downscale: 1
+scale_radius: 3  # what does this do 
+
+val_rayschunk: 10000
+volume_size: 6
+len: 1000
+
+batch_size: 1       # one batch, one image
+pin_memory: True
+N_rays: 1024        # N_rays for training
+surface_downscale: 8  # 512/4 = 128?
+surface_rayschunk: 1024

@@ -30,8 +30,8 @@ device = "cuda:0"
 
 
 class UniGuide:
-    def __init__(self) -> None:
-        self.hand_wrapper = hand_utils.ManopthWrapper().to(device)
+    def __init__(self, cfg) -> None:
+        self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir).to(device)
         self.sd = None
         self.text_template = {}
 
@@ -93,7 +93,7 @@ class UniGuide:
         uObj,
         text,
         nTu=None,
-        vis_every_n=10,
+        vis_every_n=500,
         w_sds=10,
         T=500,
         cfg=None,
@@ -329,7 +329,7 @@ def batch_uniguide(args):
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-    uni_guide = UniGuide()
+    uni_guide = UniGuide(args)
     base_dir = args.save_dir  #  "/home/yufeiy2/scratch/result/uni_guide/"
 
     sd = uni_guide.init_sds(args, device)

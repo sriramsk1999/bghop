@@ -8,9 +8,7 @@ vis_dir: ${output}/${load_index}/vis
 
 S: 5
 
-load_dir: finetune_thick # thicker_prior
-load_name:  attr  # joint 
-load_index: ${load_dir}/${load_name}
+load_index: joint_3dprior/mix_data
 load_pt: ${output}/${load_index}/checkpoints/last.ckpt
 
 seed: 123

@@ -3,12 +3,12 @@ defaults:
 
 output: ${environment.output}
 
-grasp_dir: /home/yufeiy2/scratch/result/GenGrasps/HO3D
+grasp_dir: ${environment.data_dir}/HO3D_grasp
 save_index: grasp
 save_dir: ${output}/${load_index}/${save_index}
 
-load_dir:  finetune_thick # thicker_prior
-load_name:  attr
+load_dir:  joint_3dprior
+load_name:  mix_data
 load_index: ${load_dir}/${load_name}
 load_pt: ${output}/${load_index}/checkpoints/last.ckpt
 
@@ -43,3 +43,5 @@ refine_grasp: True
 
 num: -1
 S: 2
+
+rand_tsl: 0.05

@@ -1,0 +1,20 @@
+cluster: slurm
+
+slurm_signal_delay_s: 120
+timeout_min: 360 # 6 hours
+slurm_partition: shubham,abhinav,shubhamlong,abhinavlong
+
+# slurm_mem_per_gpu: 40 # ${eval:'40*${ngpu}'}
+mem: 60GB
+gpus_per_node: ${ngpu}
+tasks_per_node: ${ngpu}
+cpus_per_task: 10
+nodes: 1
+slurm_max_num_timeout: 100
+
+
+folder: ${exp_dir}/submitit_train_logs/
+slurm_job_name: ${expname}
+# constraint: 
+
+exclude:

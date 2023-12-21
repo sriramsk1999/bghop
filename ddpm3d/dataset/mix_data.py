@@ -1,10 +1,15 @@
+# --------------------------------------------------------
+# Written by Yufei Ye (https://github.com/JudyYe)
+# --------------------------------------------------------
 import json
-import pickle
-import torch
 import os.path as osp
+import pickle
 from functools import partial
-from .data_utils import get_nXyz_sdf
+
+import torch
 from jutils import geom_utils, hand_utils
+
+from .data_utils import get_nXyz_sdf
 
 
 def parse_data(data_dir, split, data_cfg, args):
@@ -63,7 +68,7 @@ def parse_data(data_dir, split, data_cfg, args):
             text_list[i] += + ', ' + p
     print('text set #', len(set(text_list)))
     meta['cfg'] = args
-    meta['hand_wrapper'] = hand_utils.ManopthWrapper().to('cpu')
+    meta['hand_wrapper'] = hand_utils.ManopthWrapper(args.environment.mano_dir).to('cpu')
 
     print('parsing data done!')
 

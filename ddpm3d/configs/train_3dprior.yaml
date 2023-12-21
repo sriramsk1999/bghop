@@ -4,7 +4,7 @@ defaults:
   - hand_field: distance
   - data@trainsets: hoi4d 
   - data@testsets: hoi4d_test
-
+  - first_stage: vq-f4
 hydra:
   run:
     dir: ${exp_dir}/outputs

@@ -20,9 +20,7 @@ class LatentObjIdtyHand(BaseModule):
         super().__init__(cfg, *args, **kwargs)
 
         # initialize ae
-        self.ae = model_utils.load_from_checkpoint(
-            self.cfg.model.first_stage.ckpt_path, legacy=True
-        )
+        self.ae = model_utils.instantiate_from_config(cfg.first_stage, cfg=cfg)
         self.hand_cond = build_hand_field(cfg.field, cfg)
 
         if isinstance(self.ae, VQModel):

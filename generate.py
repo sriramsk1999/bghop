@@ -110,6 +110,7 @@ def sample_hoi(args):
     for cat in args.cat_list.split("+"):
         if cat not in lib:
             print(f"{cat} not in dictionary")
+            print(f'check list of available objects in "{lib_name}"')
         # for cat in lib.keys():
         do_one(cat)
 

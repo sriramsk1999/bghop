@@ -133,7 +133,7 @@ def build_logger(cfg):
     elif cfg.logging == 'wandb':
         os.makedirs(cfg.exp_dir + '/log/wandb', exist_ok=True)
         import wandb
-        wandb.login(key=cfg.environment.wandb.api)
+        # wandb.login(key=cfg.environment.wandb.api)
         # add lock of runid
         lockfile = FileLock(f"{cfg.exp_dir}/runid.lock")
         kwargs = {}

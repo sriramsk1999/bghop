@@ -1,0 +1,48 @@
+environment:
+  wandb:
+    user: judyye
+    api: 8e99ff14eba9677d715999d7a282c9ff79cfb9bf
+  remote_str: /home/yufeiy2/scratch/
+  data_dir: ${environment.remote_str}/data/
+  output: ${environment.remote_str}/result/vhoi
+  slurm_partition: abhinav,shubham,abhinavlong,shubhamlong,all
+  submitit_dir: ${exp_dir}/submitit_train_logs/
+  world_size: 1
+  ngpu: 1
+  workers: 8
+  mem_gb: 256
+  gpu_mem_gb: 20G
+  slurm: false
+  slurm_timeout: 360
+  nodelist: ''
+  exclude_nodes: grogu-1-9+grogu-1-24
+data:
+  type: HOI
+  data_dir: ${environment.data_dir}/HOI4D_clip/${data.index}
+  cat: Mug
+  ind: 1
+  index: ${data.cat}_${data.ind}
+  downscale: 1
+  scale_radius: 3
+  val_rayschunk: 10000
+  volume_size: 6
+  len: 1000
+  batch_size: 1
+  pin_memory: true
+  N_rays: 1024
+  surface_downscale: 8
+  surface_rayschunk: 1024
+output: ${environment.output}
+expname: dev/tmp
+exp_dir: ${output}/${expname}
+T_num: null
+load_folder: copy_load/Knife_1
+load_dir: ${output}/${load_folder}
+reso: 512
+'N': 256
+D: 128
+T: 100
+volume_size: 6
+surface: false
+fig: false
+video: false

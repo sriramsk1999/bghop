@@ -9,8 +9,8 @@ Yufei Ye, Abhinav Gupta, Kris Kitani, Shubham Tulsiani
 - ```pip install -r requirements.txt```
 
 ### Download Pretrained Weights / Preprocessed Data
-- Download pretrained models from [here]() and place it at `${environment.output}`. 
-- Download our preprocessed data from [here]() and place it at `${environment.data_dir}`. 
+- Download pretrained models from [here](https://drive.google.com/file/d/19oW1S0bqhCBC4p3qfq1SEQksN-7e21nU/view?usp=sharing) and place it at `${environment.output}`. 
+- Download our preprocessed data (for video reconstruction and grasp synthesis) from [here](https://drive.google.com/file/d/1qgfMiKG2jKfgrjLuCjuk3MNoSaYF1_Ro/view?usp=sharing) and place it at `${environment.data_dir}`. 
 - Dowload MANO model from [their official website](https://mano.is.tue.mpg.de/). Place it under `${environment.mano_dir}`. 
 
 These path variables can be specified at `configs/environment/grogu_judy.yaml` (Even better practice is to create your own file `my_own.yaml` and append `environment=my_own` to the command in terminal)
@@ -72,6 +72,7 @@ python -m generate S=3 \
     load_index=joint_3dprior/mix_data \
 ```
 
+
 The output are 3 HOI generations per categories, saved at `${environment.output}/\${load_index}/vis`.
 
 ### HOI Reconstruction from Videos
@@ -85,7 +86,6 @@ The output are 3 HOI generations per categories, saved at `${environment.output}
     Note there is a `/` at the end of the `load_folder` since the search pattern is `${load_folder}*`.
 
     
-
 - **Run your own HOI4D reconstruction** (~1 hour):
     
     Suppose the sequences are under `${environment.data_dir}/HOI4D_clip/`
@@ -129,7 +129,8 @@ python -m  ddpm3d.base -m \
 - [Notes on coordinate system.](docs/coord.md)
 
 
-## This project is built upon this amazing repo.
+## Acknowledgement
+This project is built upon this amazing repo.
 We would also thank other great open-source projects:
 - [FrankMocap](https://github.com/facebookresearch/frankmocap/) (for hand pose esitmation)
 - [STCN](https://github.com/hkchengrex/STCN) (for video object segmentation)

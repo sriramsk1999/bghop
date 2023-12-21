@@ -1,0 +1,23 @@
+defaults:
+  - environment: grogu_judy
+  - hydra: default
+  - data: hoi4d
+
+
+output: ${environment.output}
+expname: dev/tmp
+exp_dir: ${output}/${expname}
+
+T_num: null
+
+load_folder: copy_load/Knife_1
+load_dir: ${output}/${load_folder}
+reso: 512
+N: 256
+D: 128
+T: 100
+volume_size: 6
+
+surface: False
+fig: False
+video: False
