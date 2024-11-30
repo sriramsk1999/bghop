@@ -1,7 +1,8 @@
 # G-HOP: Generative Hand-Object Prior for Interaction Reconstruction and Grasp Synthesis
 Yufei Ye, Abhinav Gupta, Kris Kitani, Shubham Tulsiani
 
-[[Project Website]](https://judyye.github.io/ghop-www) [[Arxiv]]()
+CVPR2024
+[[Project Website]](https://judyye.github.io/ghop-www) [[Arxiv]](https://arxiv.org/abs/2404.12383)
 
 ## Installation 
 ### Enviornment specification
@@ -135,7 +136,8 @@ We would also thank other great open-source projects:
 - [FrankMocap](https://github.com/facebookresearch/frankmocap/) (for hand pose esitmation)
 - [STCN](https://github.com/hkchengrex/STCN) (for video object segmentation)
 - [SMPL/SMPLX](https://smpl-x.is.tue.mpg.de/), [MANO](https://github.com/hassony2/manopth)
-- [GLIDE](https://git@github.com/openai/glide-text2im.git) and modification, [Guided Diffusion](https://git@github.com/openai/guided-diffusion.git) (for diffusion model)
 - [Pytorch3D](https://github.com/facebookresearch/pytorch3d) (for rendering)
 - [pytorch-lightning](https://lightning.ai/) (for framework)
 - [SDFusion](https://yccyenchicheng.github.io/SDFusion/) (for diffusion model architecture to generate SDFs)
+
+  The majority of GHOP is licensed under CC-BY-NC, however portions of the project are available under separate license terms: SDFusion is licensed under the MIT license.
