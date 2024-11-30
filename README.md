@@ -1,7 +1,6 @@
 # G-HOP: Generative Hand-Object Prior for Interaction Reconstruction and Grasp Synthesis
-Yufei Ye, Abhinav Gupta, Kris Kitani, Shubham Tulsiani
+Yufei Ye, Abhinav Gupta, Kris Kitani, Shubham Tulsiani, in CVPR2024
 
-CVPR2024
 [[Project Website]](https://judyye.github.io/ghop-www) [[Arxiv]](https://arxiv.org/abs/2404.12383)
 
 ## Installation 
