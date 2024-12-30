@@ -323,7 +323,7 @@ def list_all_inputs(args):
     return sdf_list
 
 
-@main(config_path="configs", config_name="grasp_syn")
+@main(config_path="configs", config_name="grasp_syn", version_base=None)
 @slurm_utils.slurm_engine()
 def batch_uniguide(args):
     torch.manual_seed(args.seed)

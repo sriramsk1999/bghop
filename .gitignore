@@ -1,3 +1,7 @@
+todo
+data/
+third_party/
+output/
 outputs/
 multirun/
 **/.ipynb_checkpoints/

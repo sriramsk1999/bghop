@@ -17,8 +17,7 @@ class CLIPTextTokenizer(AbstractEncoder):
     def __init__(self, device="cuda"):
         super().__init__()
         self.tokenizer = CLIPTokenizer.from_pretrained(
-            "CompVis/stable-diffusion-v1-4", subfolder="tokenizer",
-            cache_dir='/home/yufeiy2/scratch/pretrain')
+            "CompVis/stable-diffusion-v1-4", subfolder="tokenizer")
         self.device = device
 
     @torch.no_grad()    
@@ -36,8 +35,7 @@ class CLIPPooledEmbedder(nn.Module):
         super().__init__()
         self.device = device
         self.tknz_fn = CLIPTextTokenizer(device)
-        self.model = CLIPTextModel.from_pretrained("CompVis/stable-diffusion-v1-4", subfolder="text_encoder", 
-            cache_dir='/home/yufeiy2/yufeiy2/pretrain/')
+        self.model = CLIPTextModel.from_pretrained("CompVis/stable-diffusion-v1-4", subfolder="text_encoder")
         self.ndim = self.model.config.hidden_size
 
     def forward(self, text, use_tokenizer=True):

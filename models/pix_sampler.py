@@ -75,7 +75,7 @@ def get_pixel_sampler(name, sampler_args, args):
     return Model(sampler_args, args)
 
 
-@main(config_path='../configs', config_name='volsdf_nogt')
+@main(config_path='../configs', config_name='volsdf_nogt', version_base=None)
 def test_pixel_sampler(cfg):
     vis_dir = '/home/yufeiy2/scratch/result/vis/'
     pixel_sampler = get_pixel_sampler(cfg.pixel_sampler.name, cfg.pixel_sampler, cfg)

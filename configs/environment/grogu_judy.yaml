@@ -1,7 +1,0 @@
-wandb:
-  user: judyye
-
-remote_str: /home/yufeiy2/scratch/
-data_dir: ${environment.remote_str}/data/
-output: ${environment.remote_str}/result/vhoi
-mano_dir: /home/yufeiy2/scratch/pretrain/smpl/mano_v1_2/models

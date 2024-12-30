@@ -4,22 +4,20 @@ Yufei Ye, Abhinav Gupta, Kris Kitani, Shubham Tulsiani, in CVPR2024
 [[Project Website]](https://judyye.github.io/ghop-www) [[Arxiv]](https://arxiv.org/abs/2404.12383)
 
 ## Installation 
-### Enviornment specification
-- pytorch>=1.10 
-- ```pip install -r requirements.txt```
+1.  **Easy setup** (environment, pre-trained models, data, etc. )
+    ```
+    bash scripts/one_click.sh
+    ```
+2. **Download MANO model.**
+Due to license constraints, please download MANO model from [their official website](https://mano.is.tue.mpg.de/). Place it under `third_party/`. 
 
-### Download Pretrained Weights / Preprocessed Data
-- Download pretrained models from [here](https://drive.google.com/file/d/19oW1S0bqhCBC4p3qfq1SEQksN-7e21nU/view?usp=sharing) and place it at `${environment.output}`. 
-- Download our preprocessed data (for video reconstruction and grasp synthesis) from [here](https://drive.google.com/file/d/1qgfMiKG2jKfgrjLuCjuk3MNoSaYF1_Ro/view?usp=sharing) and place it at `${environment.data_dir}`. 
-- Dowload MANO model from [their official website](https://mano.is.tue.mpg.de/). Place it under `${environment.mano_dir}`. 
-
-These path variables can be specified at `configs/environment/grogu_judy.yaml` (Even better practice is to create your own file `my_own.yaml` and append `environment=my_own` to the command in terminal)
+The path variables can also be re-defined at [`ddpm3d/configs/environment/default.yaml`](ddpm3d/configs/environment/default.yaml) (prior) and [`configs/environment/default.yaml`](configs/environment/default.yaml) (reconstruction part). 
 
 <details>
   <summary>Here is the folder structure that our code assumes.</summary>
   
   ```
-  ${environment.output}/
+  output/
     # pretrained diffusion model
     joint_3dprior/
       mix_data/
@@ -38,7 +36,7 @@ These path variables can be specified at `configs/environment/grogu_judy.yaml` (
       ...
 
   # preprocessed data
-  ${envionment.data_dir}/
+  data/
     # preprocessed data for video reconstruction
     HOI4D_clip/
       Mug_1/
@@ -57,7 +55,7 @@ These path variables can be specified at `configs/environment/grogu_judy.yaml` (
 
 
   # MANO
-  ${environment.mano_dir}/
+  third_party/mano_v1_2/models/
     MANO_RIGHT.pkl
     MANO_UV_right.obj
     ...
@@ -75,6 +73,12 @@ python -m generate S=3 \
 
 The output are 3 HOI generations per categories, saved at `${environment.output}/\${load_index}/vis`.
 
+The output should be similar to the following:
+| camera | ![image](docs/camera_jHoi.gif) | 
+| --- | --- |
+| hammer | ![image](docs/hammer_jHoi.gif) | 
+
+
 ### HOI Reconstruction from Videos
 - **Visualize our reconstructions**
 
@@ -84,6 +88,12 @@ The output are 3 HOI generations per categories, saved at `${environment.output}
         load_folder=hoi4d/     video=True  
     ```
     Note there is a `/` at the end of the `load_folder` since the search pattern is `${load_folder}*`.
+
+The output should be like the following: 
+| Input | Novel View | HOI |
+| --- | --- | --- |
+| ![image](docs/kettle_2/input.gif) | 
+![image](docs/kettle_2/render_1.gif) | ![image](docs/kettle_2/vHoi.gif)
 
     
 - **Run your own HOI4D reconstruction** (~1 hour):
@@ -129,7 +139,10 @@ python -m  ddpm3d.base -m \
 - [Notes on coordinate system.](docs/coord.md)
 
 
-## Acknowledgement
+## License and Acknowledgement
+The majority of GHOP is licensed under CC-BY-NC, however portions of the project are available under separate license terms: SDFusion is licensed under the MIT license.
+
+
 This project is built upon this amazing repo.
 We would also thank other great open-source projects:
 - [FrankMocap](https://github.com/facebookresearch/frankmocap/) (for hand pose esitmation)
@@ -139,4 +152,3 @@ We would also thank other great open-source projects:
 - [pytorch-lightning](https://lightning.ai/) (for framework)
 - [SDFusion](https://yccyenchicheng.github.io/SDFusion/) (for diffusion model architecture to generate SDFs)
 
-  The majority of GHOP is licensed under CC-BY-NC, however portions of the project are available under separate license terms: SDFusion is licensed under the MIT license.

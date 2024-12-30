@@ -172,7 +172,7 @@ def load_rgb(path, downscale=1):
 
 
 def load_mask(path, downscale=1):
-    alpha = imageio.imread(path, as_gray=True)
+    alpha = imageio.imread(path, mode='F')
     alpha = skimage.img_as_float32(alpha)
     if downscale != 1:
         alpha = rescale(alpha, 1.0 / downscale, anti_aliasing=False, multichannel=False)

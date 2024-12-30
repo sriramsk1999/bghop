@@ -344,7 +344,7 @@ class BaseModule(pl.LightningModule):
         return model_kwargs
 
 
-@main("configs", "train_3dprior")
+@main("configs", "train_3dprior", version_base=None)
 @slurm_utils.slurm_engine()
 def main_worker(cfg):
     # handle learning rate

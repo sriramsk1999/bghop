@@ -30,7 +30,7 @@ oakink_list = [
 ]
 
 
-@main(config_path="ddpm3d/configs", config_name="vis_3dprior")
+@main(config_path="ddpm3d/configs", config_name="vis_3dprior", version_base=None)
 @slurm_utils.slurm_engine()
 def sample_hoi(args):
     torch.manual_seed(args.seed)

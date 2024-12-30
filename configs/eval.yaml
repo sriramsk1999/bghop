@@ -1,5 +1,5 @@
 defaults:
-  - environment: grogu_judy
+  - environment: default
   - hydra: default
   - data: hoi4d
 

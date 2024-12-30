@@ -4,6 +4,7 @@ from functools import partial
 from glob import glob
 
 import hydra
+import imageio
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -215,6 +216,9 @@ def run_video(dataloader, trainer, save_dir, name, H, W,  N=64, volume_size=6, m
     for n, im_list in zip(name_list, image_list):
         for t, im in enumerate(im_list):
             image_utils.save_images(im, osp.join(save_dir, n, f'{t:03d}'))
+        # save video
+        im_list = image_utils.save_gif(im_list, None)
+        imageio.mimsave(osp.join(save_dir, f'{n}.gif'), [im[..., :3] for im in im_list])
     return
 
 
@@ -307,8 +311,8 @@ def main_function(args, load_pt):
     config = OmegaConf.load(osp.join(load_pt.split('/ckpts')[0], 'config.yaml'))
 
     # load data    
-    # TODO: change data... 
-    config.environment.data_dir = args.environment.data_dir
+    # overwrite environment
+    config.environment = args.environment
     dataset, _ = get_data(config, return_val=True, val_downscale=1)
     dataloader = DataLoader(dataset,
         batch_size=1,
@@ -354,7 +358,7 @@ def main_function(args, load_pt):
             run_video(dataloader, trainer, save_dir, 'vis_video', H=H, W=W, volume_size=args.volume_size, N=args.N)
 
 
-@hydra.main(config_path='../configs', config_name='eval')
+@hydra.main(config_path='../configs', config_name='eval', version_base=None)
 @slurm_utils.slurm_engine()
 def main_batch(args):
     print(osp.join(args.load_dir + '*', 'ckpts/latest.pt'))
