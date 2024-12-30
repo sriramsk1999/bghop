@@ -5,7 +5,7 @@ tar -xvf data/processed_data.tar.gz -C data/
 
 # download model to output/
 mkdir -p output
-gdown https://drive.google.com/file/d/19oW1S0bqhCBC4p3qfq1SEQksN-7e21nU/view?usp=sharing -O output/model.tar.gz
+gdown https://drive.google.com/file/d/1J-p4qlpzGuRWxDHoDjGkHcG4gtDgu-qX/view?usp=sharing -O output/model.tar.gz
 tar -xvf output/model.tar.gz -C output/
 
 # copy 
