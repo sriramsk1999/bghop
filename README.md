@@ -4,7 +4,12 @@ Yufei Ye, Abhinav Gupta, Kris Kitani, Shubham Tulsiani, in CVPR2024
 [[Project Website]](https://judyye.github.io/ghop-www) [[Arxiv]](https://arxiv.org/abs/2404.12383)
 
 ## Installation 
-1.  **Easy setup** (environment, pre-trained models, data, etc. )
+0. Start with a clean environment
+    ```
+    conda create -n ghop python=3.10 -y
+    conda activate ghop
+    ```
+1.  **Easy setup** (environment, pre-trained models, data, etc. ) Installing pytorch3d may take a while.
     ```
     bash scripts/one_click.sh
     ```
