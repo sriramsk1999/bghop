@@ -97,8 +97,7 @@ The output should be similar to the following:
 The output should be like the following: 
 | Input | Novel View | HOI |
 | --- | --- | --- |
-| ![image](docs/kettle_2/input.gif) | 
-![image](docs/kettle_2/render_1.gif) | ![image](docs/kettle_2/vHoi.gif)
+| ![image](docs/kettle_2/input.gif) | ![image](docs/kettle_2/render_1.gif) | ![image](docs/kettle_2/vHoi.gif)
 
     
 - **Run your own HOI4D reconstruction** (~1 hour):
