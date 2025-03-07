@@ -329,7 +329,7 @@ def main_function(args, load_pt):
     render_kwargs_test['W'] = W
     
     if load_pt is not None:
-        state_dict = torch.load(load_pt)
+        state_dict = torch.load(load_pt, weights_only=False)
         new_dict = state_dict['model']
 
         model_utils.load_my_state_dict(model, new_dict)
