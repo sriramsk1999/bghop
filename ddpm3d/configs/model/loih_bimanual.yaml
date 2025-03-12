@@ -1,0 +1,48 @@
+model: LatentObjIdtyHand
+module: ddpm3d.hoi3d_model
+grad_clip: 10.
+
+first_stage:
+  ckpt_path: ${output}/ae_hand_field/x4_vq-f4_none_z3/checkpoints/last.ckpt
+
+
+
+diffuse: 
+  diffusion_steps: 1000
+  noise_schedule: "linear"
+  timestep_respacing: ""
+
+resblock_updown: True
+cache_text_emb: False
+text_ctx: 128
+
+disable_transformer: False
+freeze_transformer: True
+freeze_diffusion: False
+
+
+hand: 
+  params:
+    dummy: 0
+
+unet: 
+  params: 
+    image_size: ${side_x}
+    in_channels: 3
+    model_channels: 64 # 192
+    out_channels: 3
+    num_res_blocks: 3
+    attention_resolutions: [ 4, 2 ]
+    dropout: 0.1
+    channel_mult: [1,2,3,]
+    
+    num_heads: 8
+    num_head_channels: 64
+    num_heads_upsample: -1
+    use_scale_shift_norm: True
+    dims: 3
+
+    use_spatial_transformer: ${text.activate}
+    context_dim: ${text.ndim} 
+    legacy: False
+    transformer_depth: 1

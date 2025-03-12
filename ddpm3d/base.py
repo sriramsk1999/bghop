@@ -344,7 +344,7 @@ class BaseModule(pl.LightningModule):
         return model_kwargs
 
 
-@main("configs", "train_3dprior", version_base=None)
+@main("configs", "train_3dprior_bimanual", version_base=None)
 @slurm_utils.slurm_engine()
 def main_worker(cfg):
     # handle learning rate
@@ -363,7 +363,7 @@ def main_worker(cfg):
     module = importlib.import_module(cfg.model.module)
     model_cls = getattr(module, cfg.model.model)
     model = model_cls(cfg)
-    
+
     # initialize ae
     if osp.exists(cfg.ckpt):
         model = model_utils.load_from_checkpoint(cfg.ckpt, cfg=cfg)

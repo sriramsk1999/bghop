@@ -1,0 +1,118 @@
+defaults:
+  - environment: default
+  - model: loih
+  - hand_field: distance
+  - data@trainsets: dummy
+  - data@testsets: dummy_test
+  - first_stage: vq-f4
+hydra:
+  run:
+    dir: ${exp_dir}/outputs
+  sweep:
+    dir: ${exp_dir}/outputs
+    subdir: ID${hydra.job.id} 
+
+ndim: ${model.unet.params.in_channels}  
+ndim_cond: 
+
+lib: lib  # sem_lib, sem_attr_lib
+
+cat_level: True
+uncond_image: false
+
+text: 
+  module: ddpm3d.models.encoder
+  model: CLIPPooledEmbedder
+  target: ${text.module}.${text.model}
+  params:
+    dummy: 0
+  ndim: 768
+  activate: True
+
+
+train_prob: null
+bn: false
+norm_latent: False
+
+expname: dev/tmp
+output: ${environment.output}
+checkpoints_dir: ${output}/${expname}
+outputs_dir: ${checkpoints_dir}/log
+exp_dir: ${checkpoints_dir}
+project_name: 'vhoiddpm_'
+test_name: default_test
+
+ema: False
+
+dummy_trans: False
+
+balance_class: False
+cache_data: True
+gpu_trans: False
+test_batch_size: 2
+batch_size: 32  # >=16 for latent
+
+resume_train_from: ${output}/joint_3dprior/mix_data/checkpoints/last.ckpt
+ckpt: ${resume_train_from}
+ngpu: 2
+
+# rep: occ, tsdf=none, std=1
+rep: sdf
+tsdf: 0.2
+std: 0.2
+
+tsdf_hand: ${hand_field.tsdf}
+std_hand: ${hand_field.std} 
+std_latent: 0.1
+field: ${hand_field.name}
+norm_inp: True
+
+rescale: False
+side_lim: 1.5
+
+eval: False
+logging: wandb
+learning_rate: 1e-4
+adam_weight_decay: 0.01
+side_x: 64
+side_up: 64
+sdf_suf: all_2k
+jitter_pred: True
+jitter_x: 0.03
+jitter_hA_t: 0.1
+jitter_hA_r: 0.1
+jitter_r: 0.3
+jitter_t: 0
+side_y: ${side_x}
+
+use_captions: True
+caption: template
+
+uncond_p: 0.2
+uncond_hand: 0
+legacy_cfg_hand: False
+legacy_hand_latent: False
+legacy_unet: False
+use_flip: False
+
+device: cuda
+log_frequency: 5000
+print_frequency: 100
+save_frequency: 20000
+save_topk: 0
+sanity_step: 1
+max_steps: 500000
+
+enable_inpaint: False
+enable_upsample: False
+
+activation_checkpointing: False
+
+test_guidance_scale: 4
+sample_respacing: '100'
+gradient_accumualation_steps: 1
+use_webdataset: False
+seed: 123
+upsample_factor: 4
+
+cudnn_benchmark: True
