@@ -47,14 +47,14 @@ ema: False
 dummy_trans: False
 
 balance_class: False
-cache_data: True
+cache_data: False
 gpu_trans: False
 test_batch_size: 2
 batch_size: 32  # >=16 for latent
 
-resume_train_from: ${output}/joint_3dprior/mix_data/checkpoints/last.ckpt
+resume_train_from: ${output}/joint_3dprior/mix_data/checkpoints/last_modified.ckpt
 ckpt: ${resume_train_from}
-ngpu: 2
+ngpu: 1
 
 # rep: occ, tsdf=none, std=1
 rep: sdf

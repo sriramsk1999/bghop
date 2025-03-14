@@ -10,11 +10,26 @@
 
 - Core model classes - `ddpm3d/base.py` and `ddpm3d/hoi3d_model.py`
 - Training script - `ddpm3d/base.py`
-- Input to model:
+- Requirements from dataset:
 ```
     hA - Hand Articulation (45,)
-    nXyz - Grid points, used for calculating skeletal distance field (?)
-    image - Latent of object as a 3D grid
+    image - Latent of object as a 3D grid (hand + object?)
+```
+
+
+- For some reason, there was some issue with the checkpoint having extra MANO params. Getting around it:
+```
+ckpt = torch.load("output/joint_3dprior/mix_data/checkpoints/last.ckpt")
+
+for key in ckpt["state_dict"].keys():
+   if 'verts_uv' in key:
+      ckpt["state_dict"][key] = ckpt["state_dict"][key][:, :891, :]
+   elif 'faces_uv' in key or 'hand_faces' in key:
+      ckpt["state_dict"][key] = ckpt["state_dict"][key][:, :1538, :]
+
+del ckpt["state_dict"]["glide_model.text_cond_model.model.text_model.embeddings.position_ids"]
+
+torch.save("output/joint_3dprior/mix_data/checkpoints/last_modified.ckpt")
 ```
 
 ## Notes on generate.py

@@ -397,7 +397,7 @@ def main_worker(cfg):
 
     trainer = pl.Trainer(
         accelerator="gpu",
-        devices=-1,
+        devices=cfg.ngpu,
         strategy="ddp_find_unused_parameters_false",
         num_sanity_val_steps=cfg.sanity_step,
         limit_val_batches=1,
