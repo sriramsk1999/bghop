@@ -161,6 +161,27 @@ def get_hoi4d():
     print(inp_list[0], out_list[0])
     return inp_list, out_list, med_list
 
+def get_arctic_overfit():
+    ROOT_DIR = "/data/sriram/arctic/"
+    save_dir = "data/arctic_proc"
+    os.makedirs(save_dir, exist_ok=True)
+
+    seq_name  = f"{ROOT_DIR}/outputs/processed_verts/seqs/s05/box_use_01.npy"
+    seq = np.load(seq_name, allow_pickle=True).item()
+
+    obj_name = "box"
+    obj_verts = seq["world_coord"]["verts.object"]
+
+    idx = 150 # random idx ...
+    object = trimesh.load(f"{ROOT_DIR}/data/arctic_data/data/meta/object_vtemplates/{obj_name}/mesh.obj", process=False)
+    # Position object according to the processed vertices
+    object.vertices = obj_verts[idx]
+
+    object.export(f"{save_dir}/overfit.obj")
+
+    inp_list = [f"{save_dir}/overfit.obj"]
+    out_list = [f"{save_dir}/overfit_sdf.npz"]
+    return inp_list, out_list, None
 
 def get_oakink():
     data_dir = "/home/yufeiy2/scratch/data/OakInk"
@@ -282,6 +303,10 @@ def main():
         inp_list, out_list, med_list = get_mow()
     elif args.ds == "obman":
         inp_list, out_list, med_list = get_obman()
+    elif args.ds == "arctic_overfit":
+        inp_list, out_list, med_list = get_arctic_overfit()
+    elif args.ds == "arctic":
+        raise NotImplementedError
     if args.vis:
         vis_samples(inp_list[0:8], out_list[0:8], med_list)
         return
@@ -302,7 +327,7 @@ def main():
         )
     else:
         batch_sdf(
-            inp_list, out_list, med_list, N=128, fit_to_unit_cube=True, skip=args.skip
+            inp_list, out_list, med_list, N=64, fit_to_unit_cube=True, skip=args.skip
         )
 
 

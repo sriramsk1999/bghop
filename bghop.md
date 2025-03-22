@@ -7,16 +7,6 @@
   - Run dummy training with:
   `python -m ddpm3d.base`
 
-
-- Core model classes - `ddpm3d/base.py` and `ddpm3d/hoi3d_model.py`
-- Training script - `ddpm3d/base.py`
-- Requirements from dataset:
-```
-    hA - Hand Articulation (45,)
-    image - Latent of object as a 3D grid (hand + object?)
-```
-
-
 - For some reason, there was some issue with the checkpoint having extra MANO params. Getting around it:
 ```
 ckpt = torch.load("output/joint_3dprior/mix_data/checkpoints/last.ckpt")
@@ -31,6 +21,17 @@ del ckpt["state_dict"]["glide_model.text_cond_model.model.text_model.embeddings.
 
 torch.save("output/joint_3dprior/mix_data/checkpoints/last_modified.ckpt")
 ```
+
+- Generate SDF for one arctic data point (remember to change paths):
+```
+python -m preprocess.make_sdf_grid --ds arctic_overfit
+```
+(I needed to set `PYOPENGL_PLATFORM=egl` to get it working)
+
+
+- In `ddpm3d/dataset/arctic.py`:
+  - Change paths for generated SDF and local ARCTIC dataset
+  - Run with `python -m ddpm3d.base`
 
 ## Notes on generate.py
 
