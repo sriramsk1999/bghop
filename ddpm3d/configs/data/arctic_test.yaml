@@ -1,0 +1,5 @@
+arctic:
+  target: arctic
+  name: arctic_3d
+  data_dir: ${environment.data_dir}
+  split:
