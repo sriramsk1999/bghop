@@ -55,11 +55,17 @@ torch.save("output/joint_3dprior/mix_data/checkpoints/last_modified.ckpt")
 ```
 
 ## Notes on ARCTIC
-
+- Git clone arctic dataset github repo
 - We need to download only the following from ARCTIC:
 
 ```
+export SMPLX_USERNAME=""
+export SMPLX_PASSWORD=""
+export MANO_USERNAME=""
+export MANO_PASSWORD=""
 ./bash/download_body_models.sh # SMPLX and MANO
+export ARCTIC_USERNAME=""
+export ARCTIC_PASSWORD=""
 ./bash/download_misc.sh # raw_seqs/ (MANO and object poses in world coords) and meta/ (object meshes)
 
 python scripts_data/unzip_download.py # unzip downloaded data
@@ -67,6 +73,9 @@ python scripts_data/unzip_download.py # unzip downloaded data
 
 - Process the sequences with:
 ```
+ERROR: Modify smplx package to return 21 joints for instead of 16
+Solution: https://github.com/zc-alexfan/arctic/blob/master/docs/setup.md
+
 python scripts_data/process_seqs.py --mano_p ./data/arctic_data/data/raw_seqs/s05/box_use_01.mano.npy --export_verts
 ```
 This generates object and hand vertices in world coords. It saves a lot of other data and generates huge files, we should probably modify this to save exactly what we need. We really only need the object vertices in world coords, we can skip this and transform the object ourself but it'll need a little work since we also need to handle the object's articulation.
