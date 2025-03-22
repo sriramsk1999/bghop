@@ -2,8 +2,8 @@ defaults:
   - environment: default
   - model: loih
   - hand_field: distance
-  - data@trainsets: dummy
-  - data@testsets: dummy_test
+  - data@trainsets: arctic
+  - data@testsets: arctic_test
   - first_stage: vq-f4
 hydra:
   run:
