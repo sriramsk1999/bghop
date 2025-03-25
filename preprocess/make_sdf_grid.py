@@ -129,9 +129,9 @@ def get_sdf_grid(mesh_file, N=64, fit_to_unit_cube=False, **kwargs):
     mesh = mesh_utils.as_mesh(mesh)
     if not mesh.is_watertight:
         print("mesh is not watertight")
-        error_file = mesh_file.replace("/all/", "/bad/")
-        os.makedirs(error_file, exist_ok=True)
-        print("non watertight mesh saved to", mesh_file)
+        # error_file = mesh_file.replace("/all/", "/bad/")
+        # os.makedirs(error_file, exist_ok=True)
+        # print("non watertight mesh saved to", mesh_file)
 
     d, h, w = np.meshgrid(
         np.linspace(-1, 1, N),
@@ -181,6 +181,17 @@ def get_arctic_overfit():
 
     inp_list = [f"{save_dir}/overfit.obj"]
     out_list = [f"{save_dir}/overfit_sdf.npz"]
+    return inp_list, out_list, None
+
+def get_arctic():
+    root_dir = "arctic_mesh"
+    save_dir = "arctic_sdf"
+    os.makedirs(save_dir, exist_ok=True)
+
+    inp_list = glob(f"{root_dir}/*obj")
+    out_list = [i.replace(root_dir, save_dir).replace(".obj",".npz")
+        for i in inp_list
+    ]
     return inp_list, out_list, None
 
 def get_oakink():
@@ -306,7 +317,7 @@ def main():
     elif args.ds == "arctic_overfit":
         inp_list, out_list, med_list = get_arctic_overfit()
     elif args.ds == "arctic":
-        raise NotImplementedError
+        inp_list, out_list, med_list = get_arctic()
     if args.vis:
         vis_samples(inp_list[0:8], out_list[0:8], med_list)
         return

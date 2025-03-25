@@ -22,9 +22,13 @@ del ckpt["state_dict"]["glide_model.text_cond_model.model.text_model.embeddings.
 torch.save("output/joint_3dprior/mix_data/checkpoints/last_modified.ckpt")
 ```
 
-- Generate SDF for one arctic data point (remember to change paths):
+- Generate articulated versions of the various object meshes so that we can precompute SDFs:
+```python preprocess/arctic_articulated_meshes.py --root </path/to/data>```
+
+
+- Generate SDFs for articulated meshes (remember to change paths):
 ```
-python -m preprocess.make_sdf_grid --ds arctic_overfit
+python -m preprocess.make_sdf_grid --ds arctic
 ```
 (I needed to set `PYOPENGL_PLATFORM=egl` to get it working)
 
@@ -71,6 +75,8 @@ export ARCTIC_PASSWORD=""
 
 python scripts_data/unzip_download.py # unzip downloaded data
 ```
+
+### (BELOW STEPS NOT NEEDED ANYMORE)
 
 - Process the sequences with:
 ```
