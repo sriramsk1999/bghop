@@ -68,7 +68,7 @@ def parse_data(data_dir, split, data_cfg, args):
         meta['sdf_file'].append(osp.join(data_dir, 'mesh_sdf/SdfGrids/hoi4d/{:s}/{:s}/{:03d}.npz').format(sdf_folder, *cad_index))
         meta['hand_file'].append(osp.join(data_dir, 'handpose/refinehandpose_right/{}/{:d}.pickle').format(*index))
         meta['hand_pred_file'].append(osp.join(data_dir, 'det_hand/{}/mocap/{:05d}_prediction_result.pkl').format(*index))
-        meta['objpose_file'].append(osp.join(data_dir, 'HOI4D_annotations/{}/objpose/{:d}.json').format(*index))
+        meta['objpose_file'].append(osp.join(data_dir, 'hoi4d_data/{}/objpose/{:d}.json').format(*index))
 
     cache_file = osp.join(data_dir, f'cache/{split}_{sdf_folder}_meta.pkl')
     print('cache file: ', cache_file)

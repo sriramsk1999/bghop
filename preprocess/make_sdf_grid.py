@@ -149,17 +149,17 @@ def get_sdf_grid(mesh_file, N=64, fit_to_unit_cube=False, **kwargs):
 
 
 def get_hoi4d():
-    inp_dir = "/home/yufeiy2/scratch/data/HOI4D/HOI4D_CAD_Model_for_release/rigid"
-    med_dir = "/home/yufeiy2/scratch/data/HOI4D/mesh_sdf/manifold/hoi4d/all_2k/"
-    save_dir = "/home/yufeiy2/scratch/data/HOI4D/mesh_sdf/SdfGrids/hoi4d/all_2k/"
-    inp_list = glob(osp.join(inp_dir, "*/*.obj"))
+    inp_dir = "/data/sriram/hoi4d/HOI4D_CAD_Model_for_release/rigid"
+    med_dir = "/data/sriram/hoi4d/mesh_sdf/manifold/hoi4d/all_2k/"
+    save_dir = "mesh_sdf/SdfGrids/hoi4d/all_2k/"
+    inp_list = glob(osp.join(inp_dir, "*/*.obj"))[:10]
     out_list = [Path(inp_file[:-4]).relative_to(inp_dir) for inp_file in inp_list]
     # Path to str
     out_list = [osp.join(save_dir, str(out_file)) for out_file in out_list]
-    med_list = [Path(inp_file[:-4]).relative_to(inp_dir) for inp_file in inp_list]
-    med_list = [osp.join(med_dir, str(out_file)) for out_file in med_list]
+    # med_list = [Path(inp_file[:-4]).relative_to(inp_dir) for inp_file in inp_list]
+    # med_list = [osp.join(med_dir, str(out_file)) for out_file in med_list]
     print(inp_list[0], out_list[0])
-    return inp_list, out_list, med_list
+    return inp_list, out_list, None
 
 def get_arctic_overfit():
     ROOT_DIR = "/data/sriram/arctic/"
