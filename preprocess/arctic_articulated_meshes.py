@@ -103,6 +103,7 @@ def axis_angle_to_quaternion(axis_angle: torch.Tensor) -> torch.Tensor:
 
 def load_object_data(root, obj_type):
     obj = trimesh.load(os.path.join(root, 'meta/object_vtemplates', obj_type, 'mesh.obj'), process=False)
+    obj.vertices = obj.vertices / 1000. # ARCTIC code also scales down the object by 1000 ...
     obj_verts = torch.from_numpy(obj.vertices)
 
     with open(os.path.join(root, 'meta/object_vtemplates', obj_type, 'parts.json'), 'r') as f:

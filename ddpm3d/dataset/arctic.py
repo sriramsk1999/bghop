@@ -11,6 +11,9 @@ from scipy.spatial.transform import Rotation as Rt
 from .data_utils import get_nXyz_sdf
 
 
+# NOTE: Values should be the same as in preprocess/arctic_articulated_meshes.py
+ARTICULATION_RANGE = np.linspace(0, 1.5*np.pi, 200)
+
 def parse_data(data_dir, split, data_cfg, args):
     """_summary_
 
@@ -35,13 +38,13 @@ def parse_data(data_dir, split, data_cfg, args):
     meta['uTo'] = {}
     meta['uSdf']  = {}
 
-    ROOT_DIR = "/data/sriram/arctic/"
-    seq_name  = f"{ROOT_DIR}/outputs/processed_verts/seqs/s05/box_use_01.npy"
+    sdf_dir = "arctic_sdf"
+    data_dir = "/data/sriram/arctic/"
+    object_seq_name  = f"{data_dir}/data/arctic_data/data/raw_seqs/s05/box_use_01.object.npy"
     seq_idx = 150 # random idx ...
 
-    meta['hA'], meta['hTo'] = get_anno(seq_name, seq_idx)
+    meta['hA'], meta['hTo'], meta['sdf_file'] = get_anno(object_seq_name, seq_idx, sdf_dir)
 
-    meta['sdf_file'] = ["data/arctic_proc/overfit_sdf.npz"]
     text_list = ['an image of a hand grasping a box']
 
     meta['cfg'] = args
@@ -57,19 +60,34 @@ def parse_data(data_dir, split, data_cfg, args):
         'meta': meta,
     }
 
-def get_anno(seq_name, seq_idx):
-    seq = np.load(seq_name, allow_pickle=True).item()
-    hA, cTh = get_hand_pose(seq, seq_idx)
-    cTo = get_cTo(seq, seq_idx)
-    hTo = geom_utils.inverse_rt(mat=cTh, return_mat=True) @ cTo
-    return hA, hTo
+def get_anno(object_seq_name, seq_idx, sdf_dir):
+    # Since its an articulated object, we don't have a single SDF for the object
+    # Rather than dynamically articulate the object and compute the sdf (slow),
+    # we precompute the sdfs for a range of articulations with preprocess/arctic_articulated_meshes.py
+    obj_type = osp.basename(object_seq_name).split('_')[0]
+    obj_arti = np.load(object_seq_name)[seq_idx, 0]
+    closest_articulation = ARTICULATION_RANGE[np.argmin(np.abs(ARTICULATION_RANGE - obj_arti))]
+    closest_sdf_file = f"{sdf_dir}/{obj_type}_{closest_articulation:.2f}.npz"
+    # closest_sdf_file = "data/arctic_proc/overfit_sdf.npz"
 
-def get_hand_pose(seq, seq_idx):
+    hand_seq_name = object_seq_name.replace(".object.", ".mano.")
+    hA, cTh = get_hand_pose(hand_seq_name, seq_idx)
+    cTo = get_cTo(object_seq_name, seq_idx)
+    hTo = geom_utils.inverse_rt(mat=cTh, return_mat=True) @ cTo
+
+    return hA, hTo, [closest_sdf_file]
+
+def get_hand_pose(hand_seq_name, seq_idx):
     device = 'cpu'
 
-    trans = seq["params"]['trans_r'][seq_idx]
-    rot = seq["params"]['rot_r'][seq_idx]
-    hA = seq["params"]['pose_r'][seq_idx]
+    seq = np.load(hand_seq_name, allow_pickle=True).item()
+
+    # NOTE: Only right hand for now.
+    seq = seq['right']
+
+    trans = seq['trans'][seq_idx]
+    rot = seq['rot'][seq_idx]
+    hA = seq['pose'][seq_idx]
     hA = torch.FloatTensor(hA, ).to(device)[None]
     rot = torch.FloatTensor(rot, ).to(device)[None]
     trans = torch.FloatTensor(trans, ).to(device)[None]
@@ -79,15 +97,20 @@ def get_hand_pose(seq, seq_idx):
     return hA, cTh
 
 
-def get_cTo(seq, seq_idx):
+def get_cTo(object_seq_name, seq_idx):
     """
     :param index: _description_
     :return: (1, 45)
     """
-    trans = seq["params"]['obj_trans'][seq_idx]
+    obj_poses = np.load(object_seq_name)
 
-    rot = seq["params"]['obj_rot'][seq_idx]
-    rt = Rt.from_euler('XYZ', rot).as_matrix()
+    # obj_arti = obj_poses[:, 0, None]  # radian
+    obj_rot = obj_poses[:, 1:4]
+    obj_trans = obj_poses[:, 4:]
+
+    trans = obj_trans[seq_idx] / 1000. #mm to meters
+    rot = obj_rot[seq_idx]
+    rt = Rt.from_rotvec(rot).as_matrix()
 
     rt = torch.FloatTensor(rt)[None]
     trans = torch.FloatTensor(trans)[None]
