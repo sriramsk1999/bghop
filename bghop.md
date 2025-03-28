@@ -23,7 +23,7 @@ torch.save("output/joint_3dprior/mix_data/checkpoints/last_modified.ckpt")
 ```
 
 - Generate articulated versions of the various object meshes so that we can precompute SDFs:
-```python preprocess/arctic_articulated_meshes.py --root </path/to/data>```
+```python preprocess/arctic_articulated_meshes.py --root </path/to/arctic/data>```
 
 
 - Generate SDFs for articulated meshes (remember to change paths):
@@ -32,10 +32,35 @@ python -m preprocess.make_sdf_grid --ds arctic
 ```
 (I needed to set `PYOPENGL_PLATFORM=egl` to get it working)
 
+- Generate train/val splits by copying `preprocess/arctic_contact.patch` and `preprocess/process_seqs_contact.py` to the the ARCTIC repo (`arctic/scripts_data`) and then running:
+```
+git apply scripts_data/arctic_contact.patch
+python scripts_data/process_seqs_contact.py --export_verts
+```
 
-- In `ddpm3d/dataset/arctic.py`:
-  - Change paths for generated SDF and local ARCTIC dataset
-  - Run with `python -m ddpm3d.base`
+### Train
+
+```
+python -m ddpm3d.base environment.data_dir=/path/to/arctic/data
+```
+
+With quick visualizations:
+```
+python -m ddpm3d.base environment.data_dir=/path/to/arctic/data log_frequency=10 print_frequency=10
+```
+  
+## Expected directory structure for ARCTIC
+
+```
+arctic/data/
+|-- arctic_data/              # Original dataset from ARCTIC
+|-- arctic_mesh/              # Generated from preprocess/arctic_articulated_meshes.py
+|-- arctic_sdf/               # Generated from preprocess/make_sdf_grid
+|-- body_models/              # Original body models from ARCTIC dataset
+|-- arctic_contact_all.csv    # Generated from ARCTIC repo after applying preprocess/arctic_contact.patch
+|-- arctic_contact_train.csv  # Generated from ARCTIC repo after applying preprocess/arctic_contact.patch
+|-- arctic_contact_val.csv    # Generated from ARCTIC repo after applying preprocess/arctic_contact.patch
+```
 
 ## Notes on generate.py
 

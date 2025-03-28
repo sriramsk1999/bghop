@@ -7,6 +7,8 @@ import torch
 from jutils import geom_utils, hand_utils
 import numpy as np
 from scipy.spatial.transform import Rotation as Rt
+import pandas as pd
+from tqdm import tqdm
 
 from .data_utils import get_nXyz_sdf
 
@@ -38,18 +40,24 @@ def parse_data(data_dir, split, data_cfg, args):
     meta['uTo'] = {}
     meta['uSdf']  = {}
 
-    sdf_dir = "arctic_sdf"
-    data_dir = "/data/sriram/arctic/"
-    object_seq_name  = f"{data_dir}/data/arctic_data/data/raw_seqs/s05/box_use_01.object.npy"
-    seq_idx = 150 # random idx ...
-
-    meta['hA'], meta['hTo'], meta['sdf_file'] = get_anno(object_seq_name, seq_idx, sdf_dir)
-
-    text_list = ['an image of a hand grasping a box']
-
     meta['cfg'] = args
-    meta['cad_index'] = [0]
     meta['hand_wrapper'] = hand_utils.ManopthWrapper(args.environment.mano_dir).to('cpu')
+
+    text_list = []
+    seq_prefix = "arctic_data/data/raw_seqs"
+
+    df = pd.read_csv(osp.join(data_dir, f'arctic_contact_{split}.csv'))
+    for i, row in tqdm(df.iterrows(), total=len(df), desc='preload anno'):
+        seq_name, seq_idx, caption = row['filename'], row['timestep'], row['caption']
+
+        hand_seq_name  = f"{data_dir}/{seq_prefix}/{seq_name}"
+        object_seq_name  = hand_seq_name.replace('.mano.', '.object.')
+
+        meta['sdf_file'].append(get_closest_sdf_file(data_dir, object_seq_name, seq_idx))
+        hA, hTo = get_anno(hand_seq_name, object_seq_name, seq_idx)
+        meta['hA'].append(hA)
+        meta['hTo'].append(hTo)
+        text_list.append(caption)
 
     return {
         'image': meta['sdf_file'],
@@ -60,22 +68,12 @@ def parse_data(data_dir, split, data_cfg, args):
         'meta': meta,
     }
 
-def get_anno(object_seq_name, seq_idx, sdf_dir):
-    # Since its an articulated object, we don't have a single SDF for the object
-    # Rather than dynamically articulate the object and compute the sdf (slow),
-    # we precompute the sdfs for a range of articulations with preprocess/arctic_articulated_meshes.py
-    obj_type = osp.basename(object_seq_name).split('_')[0]
-    obj_arti = np.load(object_seq_name)[seq_idx, 0]
-    closest_articulation = ARTICULATION_RANGE[np.argmin(np.abs(ARTICULATION_RANGE - obj_arti))]
-    closest_sdf_file = f"{sdf_dir}/{obj_type}_{closest_articulation:.2f}.npz"
-    # closest_sdf_file = "data/arctic_proc/overfit_sdf.npz"
-
-    hand_seq_name = object_seq_name.replace(".object.", ".mano.")
+def get_anno(hand_seq_name, object_seq_name, seq_idx):
     hA, cTh = get_hand_pose(hand_seq_name, seq_idx)
     cTo = get_cTo(object_seq_name, seq_idx)
     hTo = geom_utils.inverse_rt(mat=cTh, return_mat=True) @ cTo
 
-    return hA, hTo, [closest_sdf_file]
+    return hA, hTo
 
 def get_hand_pose(hand_seq_name, seq_idx):
     device = 'cpu'
@@ -88,7 +86,7 @@ def get_hand_pose(hand_seq_name, seq_idx):
     trans = seq['trans'][seq_idx]
     rot = seq['rot'][seq_idx]
     hA = seq['pose'][seq_idx]
-    hA = torch.FloatTensor(hA, ).to(device)[None]
+    hA = torch.FloatTensor(hA, ).to(device)
     rot = torch.FloatTensor(rot, ).to(device)[None]
     trans = torch.FloatTensor(trans, ).to(device)[None]
 
@@ -116,6 +114,18 @@ def get_cTo(object_seq_name, seq_idx):
     trans = torch.FloatTensor(trans)[None]
     cTo = geom_utils.rt_to_homo(rt, trans)
     return cTo
+
+def get_closest_sdf_file(data_dir, object_seq_name, seq_idx):
+    # Since its an articulated object, we don't have a single SDF for the object
+    # Rather than dynamically articulate the object and compute the sdf (slow),
+    # we precompute the sdfs for a range of articulations with preprocess/arctic_articulated_meshes.py
+    # This means we won't have the SDF for the *exact* articulation, but we'll be within 1-2 degrees.
+
+    obj_type = osp.basename(object_seq_name).split('_')[0]
+    obj_arti = np.load(object_seq_name)[seq_idx, 0] # first element is articulation
+    closest_articulation = ARTICULATION_RANGE[np.argmin(np.abs(ARTICULATION_RANGE - obj_arti))]
+    closest_sdf_file = f"{data_dir}/arctic_sdf/{obj_type}_{closest_articulation:.2f}.npz"
+    return closest_sdf_file
 
 def get_anno_fast(ind, meta):
     return meta['hA'][ind][None], meta['hTo'][ind]

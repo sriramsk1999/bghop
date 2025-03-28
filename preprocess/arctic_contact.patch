@@ -1,0 +1,22 @@
+diff --git a/src/arctic/processing.py b/src/arctic/processing.py
+index f86d643..4705a0d 100644
+--- a/src/arctic/processing.py
++++ b/src/arctic/processing.py
+@@ -406,7 +406,7 @@ def fetch_bbox_stat(bbox_stat, im_w, im_h):
+     return boxes
+ 
+ 
+-def process_seq(task, export_verts=False):
++def process_seq(task, export_verts=False, save=True):
+     """
+     Process one sequence
+     """
+@@ -491,4 +491,7 @@ def process_seq(task, export_verts=False):
+             os.makedirs(out_folder)
+ 
+         pbar.set_description(f"Save to {out_p}")
+-        np.save(out_p, out)
++        if save:
++            np.save(out_p, out)
++        else:
++            return out

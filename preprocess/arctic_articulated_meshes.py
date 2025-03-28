@@ -143,7 +143,6 @@ def process_objects(root, output_dir, articulation_range):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Process and articulate object meshes before converting to SDF.")
     parser.add_argument("--root", type=str, default="/data/sriram/arctic/data/arctic_data/data/", help="Root directory for ARCTIC data")
-    parser.add_argument("--output_dir", type=str, default="arctic_mesh", help="Directory to save articulated meshes")
     parser.add_argument("--start_angle", type=float, default=0, help="Start of articulation range in radians")
     parser.add_argument("--end_angle", type=float, default=1.5*np.pi, help="End of articulation range in radians")
     parser.add_argument("--n_steps", type=int, default=200, help="Number of articulations to generate")
@@ -151,4 +150,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
     articulation_range = np.linspace(args.start_angle, args.end_angle, args.n_steps)
 
-    process_objects(args.root, args.output_dir, articulation_range)
+    output_dir = f"{args.root}/arctic_mesh"
+    process_objects(args.root, output_dir, articulation_range)

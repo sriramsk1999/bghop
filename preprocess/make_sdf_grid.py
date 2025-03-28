@@ -184,8 +184,8 @@ def get_arctic_overfit():
     return inp_list, out_list, None
 
 def get_arctic():
-    root_dir = "arctic_mesh"
-    save_dir = "arctic_sdf"
+    root_dir = "/data/sriram/arctic/data/arctic_mesh"
+    save_dir = "/data/sriram/arctic/data/arctic_sdf"
     os.makedirs(save_dir, exist_ok=True)
 
     inp_list = glob(f"{root_dir}/*obj")
