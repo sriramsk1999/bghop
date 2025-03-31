@@ -150,7 +150,8 @@ class TextSdfDataset(Dataset):
             'text': text,
             'hA': hA[0],
             'offset': offset,
-            'nTo': nTo
+            'nTo': nTo,
+            'fname': self.parsed_data['meta']['fname'][ind],
         }
         out.update(sdf_dict)
         return out

@@ -36,12 +36,13 @@ def parse_data(data_dir, split, data_cfg, args):
     meta['hA_pred'] = []
     meta['hTo_pred'] = []
     meta['sdf_file'] = []
+    meta['fname'] = []
 
     meta['uTo'] = {}
     meta['uSdf']  = {}
 
     meta['cfg'] = args
-    meta['hand_wrapper'] = hand_utils.ManopthWrapper(args.environment.mano_dir).to('cpu')
+    meta['hand_wrapper'] = hand_utils.ManopthWrapper(args.environment.mano_dir, flat_hand_mean=False).to('cpu')
 
     text_list = []
     seq_prefix = "arctic_data/data/raw_seqs"
@@ -57,6 +58,7 @@ def parse_data(data_dir, split, data_cfg, args):
         hA, hTo = get_anno(hand_seq_name, object_seq_name, seq_idx)
         meta['hA'].append(hA)
         meta['hTo'].append(hTo)
+        meta['fname'].append(f"{seq_name}-{seq_idx}")
         text_list.append(caption)
 
     return {

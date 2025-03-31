@@ -301,13 +301,15 @@ class BaseModule(pl.LightningModule):
 
         jHand.textures = mesh_utils.pad_texture(jHand, 'blue')
         jHoi = mesh_utils.join_scene([jHand, jObj])
-        self.vis_meshes(jHoi, f'{pref}_sample_jHoi', log, step)
-        
-    def vis_meshes(self, meshes, name, log, step=None, text=None):
+
+        caption = " | ".join(batch['fname'])
+        self.vis_meshes(jHoi, f'{pref}_sample_jHoi', log, step, caption=caption)
+
+    def vis_meshes(self, meshes, name, log, step=None, text=None, caption=None):
         image_list = mesh_utils.render_geom_rot_v2(meshes)
         fname = osp.join(self.log_dir, f"{name}_{step}")
         image_utils.save_gif(image_list, fname, text_list=[text])
-        log[f"{name}"] = wandb.Video(fname + ".gif")
+        log[f"{name}"] = wandb.Video(fname + ".gif", caption=caption)
         return log
 
     def get_model_kwargs(
