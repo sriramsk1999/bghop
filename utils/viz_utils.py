@@ -10,7 +10,7 @@ class Visualizer(nn.Module):
         super().__init__()
         self.cfg = cfg
         self.log_dir = log_dir
-        self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir)
+        self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean)
 
     def add_image(self, image, name, log, step=None):
         fname = osp.join(self.log_dir, f"{name}_{step}")

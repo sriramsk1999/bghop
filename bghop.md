@@ -9,6 +9,7 @@
 
 - For some reason, there was some issue with the checkpoint having extra MANO params. Getting around it:
 ```
+import torch
 ckpt = torch.load("output/joint_3dprior/mix_data/checkpoints/last.ckpt")
 
 for key in ckpt["state_dict"].keys():
@@ -19,12 +20,22 @@ for key in ckpt["state_dict"].keys():
 
 del ckpt["state_dict"]["glide_model.text_cond_model.model.text_model.embeddings.position_ids"]
 
-torch.save("output/joint_3dprior/mix_data/checkpoints/last_modified.ckpt")
+torch.save(ckpt, "output/joint_3dprior/mix_data/checkpoints/last_modified.ckpt")
 ```
+- ARCTIC dataset has MANO params with `flat_hand_mean=False`, since G-HOP was trained with datasets having `flat_hand_mean=True`, these values are in the checkpoint and will overwrite our changes. To fix, modify the checkpoint:
+```
+import torch
+ckpt = torch.load("output/joint_3dprior/mix_data/checkpoints/last_modified.ckpt")
+
+keys = [i for i in ckpt["state_dict"] if "th_hands_mean" in i]
+for key in keys:
+    ckpt["state_dict"][key] = ckpt["state_dict"]["ae.model.hand_cond.hand_wrapper.hand_mean"]
+torch.save(ckpt, "output/joint_3dprior/mix_data/checkpoints/last_modified.ckpt")
+```
+
 
 - Generate articulated versions of the various object meshes so that we can precompute SDFs:
 ```python preprocess/arctic_articulated_meshes.py --root </path/to/arctic/data>```
-
 
 - Generate SDFs for articulated meshes (remember to change paths):
 ```

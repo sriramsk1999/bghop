@@ -15,7 +15,7 @@ class BaseHandField(nn.Module):
         cfg,
     ) -> None:
         super().__init__()
-        self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir)
+        self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean)
         field = cfg.get("field", "coord")
         field2ndim = {
             "coord": 45,

@@ -116,3 +116,5 @@ seed: 123
 upsample_factor: 4
 
 cudnn_benchmark: True
+
+flat_hand_mean: False # ARCTIC MANO is with flat_hand_mean=False

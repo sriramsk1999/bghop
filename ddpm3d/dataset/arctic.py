@@ -42,7 +42,7 @@ def parse_data(data_dir, split, data_cfg, args):
     meta['uSdf']  = {}
 
     meta['cfg'] = args
-    meta['hand_wrapper'] = hand_utils.ManopthWrapper(args.environment.mano_dir, flat_hand_mean=False).to('cpu')
+    meta['hand_wrapper'] = hand_utils.ManopthWrapper(args.environment.mano_dir, flat_hand_mean=data_cfg.flat_hand_mean).to('cpu')
 
     text_list = []
     seq_prefix = "arctic_data/data/raw_seqs"

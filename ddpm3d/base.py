@@ -47,7 +47,7 @@ class BaseModule(pl.LightningModule):
         self.train_batch = None
         self.log_dir = osp.join(cfg.exp_dir, "log")
 
-        self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir)
+        self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean)
 
     def train_dataloader(self):
         cfg = self.cfg

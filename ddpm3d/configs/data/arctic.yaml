@@ -3,3 +3,4 @@ arctic:
   name: arctic_3d
   data_dir: ${environment.data_dir}
   split: train
+  flat_hand_mean: False
