@@ -37,6 +37,7 @@ class BaseModule(pl.LightningModule):
     def __init__(self, cfg, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.cfg = cfg
+        self.enable_bimanual = cfg.get("enable_bimanual", False)
         self.template_size = None
         # self.glide_model, self.diffusion, self.glide_options = build_glide_model(cfg)
         self.glide_model: Text2GFUNet = None
@@ -48,7 +49,8 @@ class BaseModule(pl.LightningModule):
         self.log_dir = osp.join(cfg.exp_dir, "log")
 
         self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean)
-        self.hand_wrapper_left = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean, side="left")
+        if self.enable_bimanual:
+            self.hand_wrapper_left = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean, side="left")
 
     def train_dataloader(self):
         cfg = self.cfg
@@ -297,14 +299,16 @@ class BaseModule(pl.LightningModule):
         self.vis_meshes(jObj, f'{pref}_jObj', log, step)
 
         hHand,  _ = self.hand_wrapper(None, batch['hA'])
-        hHand_left,  _ = self.hand_wrapper_left(None, batch['hA_left'])
         nTh = hand_utils.get_nTh(hand_wrapper=self.hand_wrapper, hA=batch['hA'])
         jHand = mesh_utils.apply_transform(hHand, nTh)
-        jHand_left = mesh_utils.apply_transform(hHand_left, batch["nTh_left"][:,0])
-
         jHand.textures = mesh_utils.pad_texture(jHand, 'blue')
-        jHand_left.textures = mesh_utils.pad_texture(jHand_left, 'blue')
-        jHoi = mesh_utils.join_scene([jHand, jObj, jHand_left])
+        jHoi = mesh_utils.join_scene([jHand, jObj])
+
+        if self.enable_bimanual:
+            hHand_left,  _ = self.hand_wrapper_left(None, batch['hA_left'])
+            jHand_left = mesh_utils.apply_transform(hHand_left, batch["nTh_left"][:,0])
+            jHand_left.textures = mesh_utils.pad_texture(jHand_left, 'blue')
+            jHoi = mesh_utils.join_scene([jHoi, jHand_left])
 
         caption = " | ".join(batch['fname'])
         self.vis_meshes(jHoi, f'{pref}_sample_jHoi', log, step, caption=caption)
@@ -373,9 +377,6 @@ def main_worker(cfg):
     # initialize ae
     if osp.exists(cfg.ckpt):
         model = model_utils.load_from_checkpoint(cfg.ckpt, cfg=cfg)
-    else:
-        # load only first stage
-        model_utils.load_my_state_dict(model.ae, torch.load(cfg.model.first_stage.ckpt_path)['state_dict'], lambda x: f'model.{x}')
 
     if cfg.model.freeze_transformer:
         model_utils.freeze(model.glide_model.text_cond_model)

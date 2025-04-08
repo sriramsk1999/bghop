@@ -9,10 +9,12 @@ class Visualizer(nn.Module):
     def __init__(self, cfg, log_dir) -> None:
         super().__init__()
         self.cfg = cfg
+        self.enable_bimanual = cfg.get("enable_bimanual", False)
+
         self.log_dir = log_dir
         self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean)
-        self.hand_wrapper_left = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean, side="left")
-        self.enable_bimanual = cfg.get("enable_bimanual", False)
+        if self.enable_bimanual:
+            self.hand_wrapper_left = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean, side="left")
 
     def add_image(self, image, name, log, step=None):
         fname = osp.join(self.log_dir, f"{name}_{step}")
