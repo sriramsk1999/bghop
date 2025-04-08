@@ -56,6 +56,9 @@ class BaseAutoencoder(pl.LightningModule):
         # self.hand_dim = hand_dim = self.hand_cond.ndim
         
         self.hand_cond = build_hand_field('none', cfg)
+        self.enable_bimanual = cfg.get("enable_bimanual", False)
+        if self.enable_bimanual:
+            self.hand_cond_left = build_hand_field('none', cfg, side="left")
         self.hand_dim = hand_dim = self.hand_cond.ndim
 
         self.register_buffer("mean", torch.zeros([1, 1 + hand_dim, 1, 1, 1]))
@@ -156,6 +159,19 @@ class BaseAutoencoder(pl.LightningModule):
             if self.cfg.tsdf_hand is not None:
                 hand = hand.clamp(min=-self.cfg.tsdf_hand, max=self.cfg.tsdf_hand)
             image = torch.cat([image, hand], dim=1)
+
+            if self.enable_bimanual:
+                # left hand
+                hand_left = self.hand_cond_left(
+                    batch["hA_left"],
+                    image.shape[-1],
+                    batch["nXyz"],
+                    field=self.cfg.field,
+                    rtn_wrist=False,
+                )
+                if self.cfg.tsdf_hand is not None:
+                    hand_left = hand_left.clamp(min=-self.cfg.tsdf_hand, max=self.cfg.tsdf_hand)
+                image = torch.cat([image, hand_left], dim=1)
         image = self.norm(image)
         batch["image"] = image
         return batch

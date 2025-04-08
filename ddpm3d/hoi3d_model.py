@@ -18,10 +18,13 @@ from jutils import model_utils, mesh_utils
 class LatentObjIdtyHand(BaseModule):
     def __init__(self, cfg, *args, **kwargs) -> None:
         super().__init__(cfg, *args, **kwargs)
+        self.enable_bimanual = cfg.get("enable_bimanual", False)
 
         # initialize ae
         self.ae = model_utils.instantiate_from_config(cfg.first_stage, cfg=cfg)
         self.hand_cond = build_hand_field(cfg.field, cfg)
+        if self.enable_bimanual:
+            self.hand_cond_left = build_hand_field(cfg.field, cfg, side="left")
 
         if isinstance(self.ae, VQModel):
             self.ae = VQModelWrapper(self.ae)
@@ -29,6 +32,8 @@ class LatentObjIdtyHand(BaseModule):
         side_x = self.cfg.side_x // self.ae.downsample
         self.latent_dim = self.ae.embed_dim
         ndim = self.latent_dim + self.hand_cond.ndim
+        if self.enable_bimanual:
+            ndim += self.hand_cond.ndim
         self.template_size = [ndim, side_x, side_x, side_x]
 
         # initialize diffusion
@@ -77,8 +82,18 @@ class LatentObjIdtyHand(BaseModule):
         if self.cfg.tsdf_hand is not None:
             hand = hand.clamp(min=-self.cfg.tsdf_hand, max=self.cfg.tsdf_hand)
         image = torch.cat([image, hand], dim=1)
+
+        if self.enable_bimanual:
+            hand_left = self.hand_cond_left(
+                batch["hA_left"], image.shape[-1], batch["nXyz"], rtn_wrist=False
+            )
+            if self.cfg.tsdf_hand is not None:
+                hand_left = hand_left.clamp(min=-self.cfg.tsdf_hand, max=self.cfg.tsdf_hand)
+            image = torch.cat([image, hand], dim=1)
         image = self.norm_latents(image)
-        batch["hand"] = image[:, self.latent_dim :]
+        batch["hand"] = image[:, self.latent_dim : self.latent_dim + self.hand_cond.ndim]
+        if self.enable_bimanual:
+            batch["hand_left"] = image[:, -self.hand_cond.ndim:]
         return image
 
     @torch.no_grad()

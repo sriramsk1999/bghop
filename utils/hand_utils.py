@@ -13,9 +13,10 @@ class BaseHandField(nn.Module):
     def __init__(
         self,
         cfg,
+        side,
     ) -> None:
         super().__init__()
-        self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean)
+        self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean, side=side)
         field = cfg.get("field", "coord")
         field2ndim = {
             "coord": 45,
@@ -144,8 +145,8 @@ class BaseHandField(nn.Module):
 
 
 class CoordField(BaseHandField):
-    def __init__(self, cfg, **kwargs) -> None:
-        super().__init__(cfg)
+    def __init__(self, cfg, side, **kwargs) -> None:
+        super().__init__(cfg, side)
         self.ndim = 45
 
     def forward(self, hA, H, nXyz, rtn_wrist=True, **kwargs):
@@ -153,8 +154,8 @@ class CoordField(BaseHandField):
 
 
 class DistanceField(BaseHandField):
-    def __init__(self, cfg) -> None:
-        super().__init__(cfg)
+    def __init__(self, cfg, side) -> None:
+        super().__init__(cfg, side)
         self.ndim = 20
 
     def forward(self, hA, H, nXyz, rtn_wrist=True, **kwargs):
@@ -162,8 +163,8 @@ class DistanceField(BaseHandField):
 
 
 class Identity(BaseHandField):
-    def __init__(self, cfg) -> None:
-        super().__init__(cfg)
+    def __init__(self, cfg, side) -> None:
+        super().__init__(cfg, side)
         self.ndim = 0
 
     def forward(self, hA, H, *args, **kwargs):
@@ -178,11 +179,11 @@ class Identity(BaseHandField):
         return torch.zeros([N, C, H, H, H], device=device)
 
 
-def build_hand_field(field, cfg) -> BaseHandField:
+def build_hand_field(field, cfg, side="right") -> BaseHandField:
     str2field = {
         "distance": DistanceField,
         "coord": CoordField,
         "none": Identity,
         "base": BaseHandField,
     }
-    return str2field[field](cfg)
+    return str2field[field](cfg, side=side)
