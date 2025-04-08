@@ -33,6 +33,8 @@ def parse_data(data_dir, split, data_cfg, args):
 
     meta['hA'] = []
     meta['hTo'] = []
+    meta['hA_left'] = []
+    meta['hTh_left'] = []
     meta['hA_pred'] = []
     meta['hTo_pred'] = []
     meta['sdf_file'] = []
@@ -55,9 +57,11 @@ def parse_data(data_dir, split, data_cfg, args):
         object_seq_name  = hand_seq_name.replace('.mano.', '.object.')
 
         meta['sdf_file'].append(get_closest_sdf_file(data_dir, object_seq_name, seq_idx))
-        hA, hTo = get_anno(hand_seq_name, object_seq_name, seq_idx)
-        meta['hA'].append(hA)
-        meta['hTo'].append(hTo)
+        hand_info = get_anno(hand_seq_name, object_seq_name, seq_idx)
+        meta['hA'].append(hand_info["right"][0])
+        meta['hTo'].append(hand_info["right"][1])
+        meta['hA_left'].append(hand_info["left"][0])
+        meta['hTh_left'].append(hand_info["left"][1])
         meta['fname'].append(f"{seq_name}-{seq_idx}")
         text_list.append(caption)
 
@@ -71,30 +75,35 @@ def parse_data(data_dir, split, data_cfg, args):
     }
 
 def get_anno(hand_seq_name, object_seq_name, seq_idx):
-    hA, cTh = get_hand_pose(hand_seq_name, seq_idx)
+    hand_anno = get_hand_pose(hand_seq_name, seq_idx)
+    hA, cTh = hand_anno["right"]
+    hA_left, cTh_left = hand_anno["left"]
     cTo = get_cTo(object_seq_name, seq_idx)
     hTo = geom_utils.inverse_rt(mat=cTh, return_mat=True) @ cTo
+    hTh_left = geom_utils.inverse_rt(mat=cTh, return_mat=True) @ cTh_left
 
-    return hA, hTo
+    return {"left": (hA_left, hTh_left), "right": (hA, hTo)}
 
 def get_hand_pose(hand_seq_name, seq_idx):
     device = 'cpu'
 
+    hand_anno = {}
     seq = np.load(hand_seq_name, allow_pickle=True).item()
 
-    # NOTE: Only right hand for now.
-    seq = seq['right']
+    for key in ["left", "right"]:
+        hand_seq = seq[key]
 
-    trans = seq['trans'][seq_idx]
-    rot = seq['rot'][seq_idx]
-    hA = seq['pose'][seq_idx]
-    hA = torch.FloatTensor(hA, ).to(device)
-    rot = torch.FloatTensor(rot, ).to(device)[None]
-    trans = torch.FloatTensor(trans, ).to(device)[None]
+        trans = hand_seq['trans'][seq_idx]
+        rot = hand_seq['rot'][seq_idx]
+        hA = hand_seq['pose'][seq_idx]
+        hA = torch.FloatTensor(hA, ).to(device)
+        rot = torch.FloatTensor(rot, ).to(device)[None]
+        trans = torch.FloatTensor(trans, ).to(device)[None]
 
-    rot, trans = hand_utils.cvt_axisang_t_i2o(rot, trans)
-    cTh = geom_utils.axis_angle_t_to_matrix(rot, trans)
-    return hA, cTh
+        rot, trans = hand_utils.cvt_axisang_t_i2o(rot, trans)
+        cTh = geom_utils.axis_angle_t_to_matrix(rot, trans)
+        hand_anno[key] = (hA, cTh)
+    return hand_anno
 
 
 def get_cTo(object_seq_name, seq_idx):
@@ -130,7 +139,7 @@ def get_closest_sdf_file(data_dir, object_seq_name, seq_idx):
     return closest_sdf_file
 
 def get_anno_fast(ind, meta):
-    return meta['hA'][ind][None], meta['hTo'][ind]
+    return meta['hA'][ind][None], meta['hTo'][ind], meta['hA_left'][ind][None], meta['hTh_left'][ind]
 
 def get_anno_pred_fast(ind, meta):
     if len(meta['hA_pred']) == 0:

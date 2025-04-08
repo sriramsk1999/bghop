@@ -105,6 +105,18 @@ class TextSdfDataset(Dataset):
         else:
             pass
         return hA, hTo
+
+    def jitter_hand_pose(self, hA, hTx):
+        rt = self.cfg.get('jitter_hA_t', 0)
+        rs = self.cfg.get('jitter_hA_s', 0)
+        hA = hA + torch.randn_like(hA) * rt
+        hA = hA * (1 + torch.rand_like(hA) * rs * 2 - rs)
+
+        jit_r = self.cfg.get('jitter_r', 0)
+        jit_t = self.cfg.get('jitter_t', 0)
+        hpTh = geom_utils.delta_mat(jit_r, jit_t)
+        hTx = hpTh @ hTx
+        return hA, hTx
     
     def __getitem__(self, ind):
         ind = ind % len(self.image_files)
@@ -117,29 +129,23 @@ class TextSdfDataset(Dataset):
             text = self.text_files[ind]
 
         # linear combination of predicted and GT
-        hA, hTo = self.parsed_data['get_anno_fn'](ind, self.parsed_data['meta'], )
+        hA, hTo, hA_left, hTh_left = self.parsed_data['get_anno_fn'](ind, self.parsed_data['meta'], )
         hA, hTo = self.augment_with_pred(ind, hA, hTo)
 
         # augmentation
         if self.is_train:
-            rt = self.cfg.get('jitter_hA_t', 0)
-            rs = self.cfg.get('jitter_hA_s', 0)
-            hA = hA + torch.randn_like(hA) * rt
-            hA = hA * (1 + torch.rand_like(hA) * rs * 2 - rs)
-
-            jit_r = self.cfg.get('jitter_r', 0)
-            jit_t = self.cfg.get('jitter_t', 0)
-            hpTh = geom_utils.delta_mat(jit_r, jit_t)
-            hTo = hpTh @ hTo
+            hA, hTo = self.jitter_hand_pose(hA, hTo)
+            hA_left, hTh_left = self.jitter_hand_pose(hA_left, hTh_left)
 
         uncond_iter = random() < self.uncond_hand
         if uncond_iter and self.is_train:
             hA = torch.zeros_like(hA)
+            hA_left = torch.zeros_like(hA_left)
 
         try:
             r = self.cfg.get('jitter_x', 0) if self.is_train else 0
             offset = torch.rand([3]) * 2 * r - r
-            sdf_dict, nTo = self.parsed_data['img_func'](image_file, ind, self.parsed_data['meta'], offset=offset, hTo=hTo, hA=hA)
+            sdf_dict, nTo, nTh_left = self.parsed_data['img_func'](image_file, ind, self.parsed_data['meta'], offset=offset, hTo=hTo, hA=hA, hTh_left=hTh_left)
         except (FileNotFoundError) as e:
             print(f"An exception occurred trying to load file {image_file}.")
             print(e)
@@ -149,8 +155,10 @@ class TextSdfDataset(Dataset):
         out = {
             'text': text,
             'hA': hA[0],
+            'hA_left': hA_left[0],
             'offset': offset,
             'nTo': nTo,
+            'nTh_left': nTh_left,
             'fname': self.parsed_data['meta']['fname'][ind],
         }
         out.update(sdf_dict)

@@ -13,7 +13,7 @@ from jutils import geom_utils, hand_utils, mesh_utils
 from tqdm import tqdm
 
 
-def get_nXyz_sdf(index, ind, meta, get_anno_fn, hA=None, hTo=None, **kwargs):
+def get_nXyz_sdf(index, ind, meta, get_anno_fn, hA=None, hTo=None, hTh_left=None, **kwargs):
     """
     :return: nXyz:  (D, H, W, 3) just be grid [-lim, lim]
     :return: nSdf:  (D, H, W, ) SDF in normalized hand frame
@@ -49,7 +49,12 @@ def get_nXyz_sdf(index, ind, meta, get_anno_fn, hA=None, hTo=None, **kwargs):
     nTo = nTh @ hTo  
     oTu = geom_utils.inverse_rt(mat=uTo, return_mat=True)
     nTu = nTo @ oTu
-    
+
+    if hTh_left is not None:
+        nTh_left = nTh @ hTh_left
+    else:
+        nTh_left = None
+
     out = {}
     if not meta['cfg'].gpu_trans:
         nSdf, nXyz = mesh_utils.transform_sdf_grid(uSdf, nTu, N=H, lim=lim, N_up=up_sample, **kwargs)
@@ -61,7 +66,7 @@ def get_nXyz_sdf(index, ind, meta, get_anno_fn, hA=None, hTo=None, **kwargs):
 
     if meta['cfg'].get('rep', 'sdf') == 'occ':
         out['nSdf'] = (out['nSdf'] < 0).float() * 2 - 1  # [-1, 1]
-    return out, nTo
+    return out, nTo, nTh_left
 
 
 def load_sdf_grid(sdf_file, tensor=False, batched=False, device='cpu'):
