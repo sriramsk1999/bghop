@@ -48,6 +48,7 @@ class BaseModule(pl.LightningModule):
         self.log_dir = osp.join(cfg.exp_dir, "log")
 
         self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean)
+        self.hand_wrapper_left = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean, side="left")
 
     def train_dataloader(self):
         cfg = self.cfg
@@ -296,11 +297,14 @@ class BaseModule(pl.LightningModule):
         self.vis_meshes(jObj, f'{pref}_jObj', log, step)
 
         hHand,  _ = self.hand_wrapper(None, batch['hA'])
+        hHand_left,  _ = self.hand_wrapper_left(None, batch['hA_left'])
         nTh = hand_utils.get_nTh(hand_wrapper=self.hand_wrapper, hA=batch['hA'])
         jHand = mesh_utils.apply_transform(hHand, nTh)
+        jHand_left = mesh_utils.apply_transform(hHand_left, batch["nTh_left"][:,0])
 
         jHand.textures = mesh_utils.pad_texture(jHand, 'blue')
-        jHoi = mesh_utils.join_scene([jHand, jObj])
+        jHand_left.textures = mesh_utils.pad_texture(jHand_left, 'blue')
+        jHoi = mesh_utils.join_scene([jHand, jObj, jHand_left])
 
         caption = " | ".join(batch['fname'])
         self.vis_meshes(jHoi, f'{pref}_sample_jHoi', log, step, caption=caption)

@@ -101,13 +101,16 @@ class LatentObjIdtyHand(BaseModule):
         z = self.unnorm_latents(z)
 
         obj = z[:, : self.latent_dim]
-        hand = z[:, self.latent_dim :]
+        hand = z[:, self.latent_dim : self.latent_dim + self.hand_cond.ndim]
 
         x = self.ae.decode(obj)  
         rtn = {
             "image": x,
             "hand": hand,  
         }
+        if self.enable_bimanual:
+            hand_left = z[:, -self.hand_cond.ndim:]
+            rtn["hand_left"] = hand_left
         return rtn
 
     def step(self, batch, batch_idx):
@@ -178,8 +181,17 @@ class LatentObjIdtyHand(BaseModule):
             hA, hA_list, rtn = self.hand_cond.grid2pose_sgd(
                 samples["hand"], field=self.cfg.field
             )
+            if self.enable_bimanual:
+                hA_left, hA_left_list, rtn_left = self.hand_cond.grid2pose_sgd(
+                    samples["hand_left"], field=self.cfg.field
+                )
+                self.viz.render_hA_traj(hA_left_list, f"{pref}_hA_left_traj", log, step, nTw.device, side="left", nTh_left=batch["nTh_left"])
+                self.viz.render_hand(hA_left, f"{pref}_hHand_left", log, step, side="left")
+                self.viz.render_hoi(jObj, hA, f"{pref}_jHoi", log, step, hA_left=hA_left, nTh_left=batch["nTh_left"])
+            else:
+                self.viz.render_hoi(jObj, hA, f"{pref}_jHoi", log, step)
+
             self.viz.render_hA_traj(hA_list, f"{pref}_hA_traj", log, step, nTw.device)
-            self.viz.render_hoi(jObj, hA, f"{pref}_jHoi", log, step)
             self.viz.render_hand(hA, f"{pref}_hHand", log, step)
 
     def get_model_kwargs(
