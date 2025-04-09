@@ -416,10 +416,7 @@ def main_worker(cfg):
         **val_kwargs,
     )
     trainer.strategy.barrier()
-    ckpt_path = cfg.get("resume_train_from", None)
-    if not osp.exists(ckpt_path):
-        ckpt_path = None
-    trainer.fit(model, ckpt_path=ckpt_path)
+    trainer.fit(model)
 
     return model
 

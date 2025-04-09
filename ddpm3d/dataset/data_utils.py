@@ -52,6 +52,11 @@ def get_nXyz_sdf(index, ind, meta, get_anno_fn, hA=None, hTo=None, hTh_left=None
 
     if hTh_left is not None:
         nTh_left = nTh @ hTh_left
+        # Scales the translation according to nTh
+        # Without this, the translation is too large for some reason.
+        # With this, its still wrong, but its almost correct.
+        # TODO: Debug what's going wrong.
+        nTh_left[:,:3,3] = (nTh_left[:,:3,3] / torch.linalg.norm(nTh_left[:,:3,3], dim=1, keepdim=True)) * torch.linalg.norm(nTh[:,:3,3], dim=1, keepdim=True)
     else:
         nTh_left = None
 
