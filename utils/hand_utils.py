@@ -26,7 +26,7 @@ class BaseHandField(nn.Module):
         self.ndim = field2ndim[field]
         self.cfg = cfg
 
-    def forward_distance(self, hA, H, nXyz, rtn_wrist=True):
+    def forward_distance(self, hA, H, nXyz, rtn_wrist=True, **kwargs):
         N = len(hA)
         # nXyz = mesh_utils.create_sdf_grid(N, H, lim, 'zyx', device=device) # (B, H, H, H, 3) in range of (-1, 1)
         nXyz = rearrange(nXyz, "n d h w c -> n c d h w")  # (B, 3, H, H, H)
@@ -35,7 +35,10 @@ class BaseHandField(nn.Module):
 
         _, hJoints = self.hand_wrapper(None, hA)
         nTh = hand_utils.get_nTh(hand_wrapper=self.hand_wrapper, hA=hA)
-        nJoints = mesh_utils.apply_transform(hJoints, nTh)  # (N, J, 3)
+        if kwargs["nTh_left"] is None:
+            nJoints = mesh_utils.apply_transform(hJoints, nTh)  # (N, J, 3)
+        else: # transform left hand distance field to normalized right hand coordinate frame
+            nJoints = mesh_utils.apply_transform(hJoints, kwargs["nTh_left"][:, 0])  # (N, J, 3)
         nJoints = nJoints.unsqueeze(2)  # (N, J, 1, 3)
 
         nDist_square = ((nXyz - nJoints) ** 2).sum(-1)  # (N, J, DHW)
@@ -97,7 +100,7 @@ class BaseHandField(nn.Module):
         return
 
     @torch.enable_grad()
-    def grid2pose_sgd(self, jsPoints_gt, opt_mode="lbfgs", field="coord"):
+    def grid2pose_sgd(self, jsPoints_gt, opt_mode="lbfgs", field="coord", nTh_left=None):
         print("gradient descent to extract hand pose")
         N = len(jsPoints_gt)
         rtn = defaultdict(list)
@@ -116,7 +119,7 @@ class BaseHandField(nn.Module):
 
             def closure():
                 opt.zero_grad()
-                jsPoints = self.pose2grid(hA, H, field=field, tsdf=self.cfg.tsdf_hand)
+                jsPoints = self.pose2grid(hA, H, field=field, tsdf=self.cfg.tsdf_hand, nTh_left=nTh_left)
                 grid_loss = 1e4 * F.mse_loss(jsPoints, jsPoints_gt)
                 reg_loss = 0.1 * F.mse_loss(
                     hA, self.hand_wrapper.hand_mean.repeat(N, 1)
@@ -133,12 +136,12 @@ class BaseHandField(nn.Module):
                 hA_list.append(hA.cpu().detach().clone())
         return hA.detach(), hA_list, rtn
 
-    def pose2grid(self, hA, H, nXyz=None, field="coord", tsdf=None):
+    def pose2grid(self, hA, H, nXyz=None, field="coord", tsdf=None, nTh_left=None):
         N = len(hA)
         if nXyz is None:
             lim = self.cfg.side_lim
             nXyz = mesh_utils.create_sdf_grid(N, H, lim, device=hA.device)
-        jsPoints = self(hA, H, nXyz, field=field, rtn_wrist=False)
+        jsPoints = self(hA, H, nXyz, field=field, rtn_wrist=False, nTh_left=nTh_left)
         if tsdf is not None:
             jsPoints = jsPoints.clamp(-tsdf, tsdf)
         return jsPoints
@@ -159,7 +162,7 @@ class DistanceField(BaseHandField):
         self.ndim = 20
 
     def forward(self, hA, H, nXyz, rtn_wrist=True, **kwargs):
-        return self.forward_distance(hA, H, nXyz, rtn_wrist=rtn_wrist)
+        return self.forward_distance(hA, H, nXyz, rtn_wrist=rtn_wrist, **kwargs)
 
 
 class Identity(BaseHandField):

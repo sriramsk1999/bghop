@@ -77,7 +77,7 @@ class LatentObjIdtyHand(BaseModule):
     def encode(self, x, batch):
         image = self.ae.encode(x)
         hand = self.hand_cond(
-            batch["hA"], image.shape[-1], batch["nXyz"], rtn_wrist=False
+            batch["hA"], image.shape[-1], batch["nXyz"], rtn_wrist=False, nTh_left=None,
         )
         if self.cfg.tsdf_hand is not None:
             hand = hand.clamp(min=-self.cfg.tsdf_hand, max=self.cfg.tsdf_hand)
@@ -85,7 +85,7 @@ class LatentObjIdtyHand(BaseModule):
 
         if self.enable_bimanual:
             hand_left = self.hand_cond_left(
-                batch["hA_left"], image.shape[-1], batch["nXyz"], rtn_wrist=False
+                batch["hA_left"], image.shape[-1], batch["nXyz"], rtn_wrist=False, nTh_left=batch["nTh_left"]
             )
             if self.cfg.tsdf_hand is not None:
                 hand_left = hand_left.clamp(min=-self.cfg.tsdf_hand, max=self.cfg.tsdf_hand)
@@ -179,11 +179,11 @@ class LatentObjIdtyHand(BaseModule):
         if "hand" in samples:
             print("vis samples")
             hA, hA_list, rtn = self.hand_cond.grid2pose_sgd(
-                samples["hand"], field=self.cfg.field
+                samples["hand"], field=self.cfg.field, nTh_left=None
             )
             if self.enable_bimanual:
-                hA_left, hA_left_list, rtn_left = self.hand_cond.grid2pose_sgd(
-                    samples["hand_left"], field=self.cfg.field
+                hA_left, hA_left_list, rtn_left = self.hand_cond_left.grid2pose_sgd(
+                    samples["hand_left"], field=self.cfg.field, nTh_left=batch["nTh_left"]
                 )
                 self.viz.render_hA_traj(hA_left_list, f"{pref}_hA_left_traj", log, step, nTw.device, side="left", nTh_left=batch["nTh_left"])
                 self.viz.render_hand(hA_left, f"{pref}_hHand_left", log, step, side="left")
