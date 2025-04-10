@@ -51,7 +51,7 @@ python scripts_data/process_seqs_contact.py --export_verts
 
 ### Train
 
-Bimanual (visualization is incorrect):
+Bimanual:
 ```
 python -m ddpm3d.base environment.data_dir=/path/to/arctic/data enable_bimanual=True
 ```

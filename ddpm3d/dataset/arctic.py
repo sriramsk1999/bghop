@@ -100,7 +100,9 @@ def get_hand_pose(hand_seq_name, seq_idx):
         rot = torch.FloatTensor(rot, ).to(device)[None]
         trans = torch.FloatTensor(trans, ).to(device)[None]
 
-        rot, trans = hand_utils.cvt_axisang_t_i2o(rot, trans)
+        is_left = (key == "left")
+        rot, trans = cvt_axisang_t_i2o(rot, trans, is_left)
+
         cTh = geom_utils.axis_angle_t_to_matrix(rot, trans)
         hand_anno[key] = (hA, cTh)
     return hand_anno
@@ -145,3 +147,37 @@ def get_anno_pred_fast(ind, meta):
     if len(meta['hA_pred']) == 0:
         return None, None
     return meta['hA_pred'][ind][None], meta['hTo_pred'][ind]
+
+def cvt_axisang_t_i2o(axisang, trans, is_left=False):
+    """+correction: t_r - R_rt_r. inner to outer"""
+    trans += get_offset(axisang, is_left)
+    return axisang, trans
+
+def cvt_axisang_t_o2i(axisang, trans, is_left=False):
+    """-correction: t_r, R_rt_r. outer to inner"""
+    trans -= get_offset(axisang, is_left)
+    return axisang, trans
+
+def get_offset(axisang, is_left=False):
+    """
+    :param axisang: (N, 3)
+    :param is_left: Whether this is for the left hand
+    :return: trans: (N, 3) = r_r - R_r t_r
+    """
+    device = axisang.device
+    N = axisang.size(0)
+
+    # Base MANO wrist offset (right hand)
+    if is_left:
+        # Mirror the x-coordinate for left hand
+        t_mano = torch.tensor([[-0.09566994, 0.00638343, 0.0061863]], dtype=torch.float32, device=device).repeat(N, 1)
+    else:
+        # Original offset for right hand
+        t_mano = torch.tensor([[0.09566994, 0.00638343, 0.0061863]], dtype=torch.float32, device=device).repeat(N, 1)
+
+    if axisang.ndim == 3:
+        rot_r = axisang
+    else:
+        rot_r = geom_utils.axis_angle_t_to_matrix(axisang, homo=False)  # N, 3, 3
+    delta = t_mano - torch.matmul(rot_r, t_mano.unsqueeze(-1)).squeeze(-1)
+    return delta
