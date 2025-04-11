@@ -10,17 +10,17 @@ hydra:
     dir: ${exp_dir}/outputs
   sweep:
     dir: ${exp_dir}/outputs
-    subdir: ID${hydra.job.id} 
+    subdir: ID${hydra.job.id}
 
-ndim: ${model.unet.params.in_channels}  
-ndim_cond: 
+ndim: ${model.unet.params.in_channels}
+ndim_cond:
 
-lib: lib  # sem_lib, sem_attr_lib
+lib: lib # sem_lib, sem_attr_lib
 
 cat_level: True
 uncond_image: false
 
-text: 
+text:
   module: ddpm3d.models.encoder
   model: CLIPPooledEmbedder
   target: ${text.module}.${text.model}
@@ -28,7 +28,6 @@ text:
     dummy: 0
   ndim: 768
   activate: True
-
 
 train_prob: null
 bn: false
@@ -39,7 +38,7 @@ output: ${environment.output}
 checkpoints_dir: ${output}/${expname}
 outputs_dir: ${checkpoints_dir}/log
 exp_dir: ${checkpoints_dir}
-project_name: 'vhoiddpm_'
+project_name: "vhoiddpm_"
 test_name: default_test
 
 ema: False
@@ -50,7 +49,7 @@ balance_class: False
 cache_data: False
 gpu_trans: False
 test_batch_size: 2
-batch_size: 32  # >=16 for latent
+batch_size: 32 # >=16 for latent
 
 resume_train_from: ${output}/joint_3dprior/mix_data/checkpoints/last_modified.ckpt
 ckpt: ${resume_train_from}
@@ -62,7 +61,7 @@ tsdf: 0.2
 std: 0.2
 
 tsdf_hand: ${hand_field.tsdf}
-std_hand: ${hand_field.std} 
+std_hand: ${hand_field.std}
 std_latent: 0.1
 field: ${hand_field.name}
 norm_inp: True
@@ -109,7 +108,7 @@ enable_upsample: False
 activation_checkpointing: False
 
 test_guidance_scale: 4
-sample_respacing: '100'
+sample_respacing: "100"
 gradient_accumualation_steps: 1
 use_webdataset: False
 seed: 123
@@ -119,3 +118,4 @@ cudnn_benchmark: True
 
 flat_hand_mean: False # ARCTIC MANO is with flat_hand_mean=False
 enable_bimanual: True
+freeze_except_input_output: True # Freeze all except input/output layers

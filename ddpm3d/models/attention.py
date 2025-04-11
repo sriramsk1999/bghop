@@ -134,7 +134,7 @@ class BasicTransformerBlock(nn.Module):
         dropout=0.0,
         context_dim=None,
         gated_ff=True,
-        checkpoint=True,
+        checkpoint=False,
     ):
         super().__init__()
         self.attn1 = CrossAttention(

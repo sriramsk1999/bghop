@@ -32,6 +32,13 @@ logging.basicConfig(
 )
 torch.backends.cudnn.benchmark = True
 
+def freeze_all_except(model, trainable_layers):
+    for name, param in model.named_parameters():
+        if name in trainable_layers:
+            param.requires_grad = True
+        else:
+            param.requires_grad = False
+    return model
 
 class BaseModule(pl.LightningModule):
     def __init__(self, cfg, *args, **kwargs) -> None:
@@ -381,6 +388,11 @@ def main_worker(cfg):
     if cfg.model.freeze_transformer:
         model_utils.freeze(model.glide_model.text_cond_model)
     # model.cuda()
+
+    if cfg.freeze_except_input_output:
+        # Freeze all layers except the input/output layers for modified input/output space
+        trainable_layers = ['glide_model.input_blocks.0.0.weight', 'glide_model.out.2.weight', 'glide_model.out.2.bias']
+        model = freeze_all_except(model, trainable_layers)
 
     logger = build_logger(cfg)
 
