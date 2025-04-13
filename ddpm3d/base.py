@@ -381,10 +381,24 @@ def main_worker(cfg):
     model_cls = getattr(module, cfg.model.model)
     model = model_cls(cfg)
 
-    # initialize ae
     if osp.exists(cfg.ckpt):
-        model = model_utils.load_from_checkpoint(cfg.ckpt, cfg=cfg)
+        checkpoint = torch.load(cfg.ckpt, map_location="cpu")  # Load the checkpoint
+        state_dict = checkpoint['state_dict']
+        model_state_dict = model.state_dict()  # Get current model's state dict
 
+        # Filter state dict for matching keys and shapes
+        filtered_state_dict = {
+            k: v for k, v in state_dict.items()
+            if k in model_state_dict and model_state_dict[k].shape == v.shape
+        }
+        model.load_state_dict(filtered_state_dict, strict=False)
+
+        skipped_keys = [
+            k for k in state_dict.keys()
+            if k not in model_state_dict or model_state_dict[k].shape != state_dict[k].shape
+        ]
+        for key in skipped_keys:
+            logging.info(f"Skipping key: {key}")
     if cfg.model.freeze_transformer:
         model_utils.freeze(model.glide_model.text_cond_model)
     # model.cuda()
