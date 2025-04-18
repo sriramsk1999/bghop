@@ -55,6 +55,7 @@ class BaseModule(pl.LightningModule):
         self.train_batch = None
         self.log_dir = osp.join(cfg.exp_dir, "log")
 
+        cfg.flat_hand_mean = cfg.get("flat_hand_mean", True)
         self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean)
         if self.enable_bimanual:
             self.hand_wrapper_left = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean, side="left")

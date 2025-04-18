@@ -16,6 +16,7 @@ class BaseHandField(nn.Module):
         side,
     ) -> None:
         super().__init__()
+        cfg.flat_hand_mean = cfg.get("flat_hand_mean", True)
         self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean, side=side)
         field = cfg.get("field", "coord")
         field2ndim = {

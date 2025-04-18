@@ -12,6 +12,7 @@ class Visualizer(nn.Module):
         self.enable_bimanual = cfg.get("enable_bimanual", False)
 
         self.log_dir = log_dir
+        cfg.flat_hand_mean = cfg.get("flat_hand_mean", True)
         self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean)
         if self.enable_bimanual:
             self.hand_wrapper_left = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=cfg.flat_hand_mean, side="left")
