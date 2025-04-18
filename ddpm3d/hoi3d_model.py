@@ -89,7 +89,7 @@ class LatentObjIdtyHand(BaseModule):
             )
             if self.cfg.tsdf_hand is not None:
                 hand_left = hand_left.clamp(min=-self.cfg.tsdf_hand, max=self.cfg.tsdf_hand)
-            image = torch.cat([image, hand], dim=1)
+            image = torch.cat([image, hand_left], dim=1)
         image = self.norm_latents(image)
         batch["hand"] = image[:, self.latent_dim : self.latent_dim + self.hand_cond.ndim]
         if self.enable_bimanual:
