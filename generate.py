@@ -30,11 +30,12 @@ oakink_list = [
 ]
 
 
-@main(config_path="ddpm3d/configs", config_name="vis_3dprior", version_base=None)
+@main(config_path="ddpm3d/configs", config_name="vis_3dprior_bimanual", version_base=None)
 @slurm_utils.slurm_engine()
 def sample_hoi(args):
     torch.manual_seed(args.seed)
     model = model_utils.load_from_checkpoint(args.load_pt)
+    enable_bimanual = model.cfg.enable_bimanual
 
     model = model.to(device)
     lim = model.cfg.side_lim
@@ -80,7 +81,7 @@ def sample_hoi(args):
         jObj.textures = mesh_utils.pad_texture(jObj, "yellow")
 
         if "hand" in samples:
-            hA, _, _ = model.hand_cond.grid2pose_sgd(
+            hA, _, _, _ = model.hand_cond.grid2pose_sgd(
                 samples["hand"], field=model.cfg.field
             )
         else:
@@ -93,10 +94,21 @@ def sample_hoi(args):
             nTh,
         )
         jHand.textures = mesh_utils.pad_texture(jHand, "blue")
-
         jHoi = mesh_utils.join_scene([jHand, jObj])
-        mesh_utils.dump_meshes(pref + "_jHoi", jHoi)
 
+        if enable_bimanual:
+            hA_left, _, _, nTh_left = model.hand_cond_left.grid2pose_sgd(
+                samples["hand_left"], field=model.cfg.field, is_left=True
+            )
+            hHand_left, _ = model.hand_wrapper_left(None, hA_left)
+            jHand_left = mesh_utils.apply_transform(
+                hHand,
+                nTh_left[:, 0],
+            )
+            jHand_left.textures = mesh_utils.pad_texture(jHand_left, "blue")
+            jHoi = mesh_utils.join_scene([jHoi, jHand_left])
+
+        mesh_utils.dump_meshes(pref + "_jHoi", jHoi)
         image_list = mesh_utils.render_geom_rot_v2(jHoi)
         image_utils.save_gif(image_list, pref + "_jHoi")
 
