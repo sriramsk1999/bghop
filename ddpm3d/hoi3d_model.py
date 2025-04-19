@@ -178,16 +178,14 @@ class LatentObjIdtyHand(BaseModule):
 
         if "hand" in samples:
             print("vis samples")
-            hA, hA_list, rtn = self.hand_cond.grid2pose_sgd(
-                samples["hand"], field=self.cfg.field, nTh_left=None
-            )
+            hA, hA_list, rtn, _ = self.hand_cond.grid2pose_sgd(samples["hand"], field=self.cfg.field)
             if self.enable_bimanual:
-                hA_left, hA_left_list, rtn_left = self.hand_cond_left.grid2pose_sgd(
-                    samples["hand_left"], field=self.cfg.field, nTh_left=batch["nTh_left"]
+                hA_left, hA_left_list, rtn_left, nTh_left = self.hand_cond_left.grid2pose_sgd(
+                    samples["hand_left"], field=self.cfg.field, is_left=True
                 )
-                self.viz.render_hA_traj(hA_left_list, f"{pref}_hA_left_traj", log, step, nTw.device, side="left", nTh_left=batch["nTh_left"])
+                self.viz.render_hA_traj(hA_left_list, f"{pref}_hA_left_traj", log, step, nTw.device, side="left", nTh_left=nTh_left)
                 self.viz.render_hand(hA_left, f"{pref}_hHand_left", log, step, side="left")
-                self.viz.render_hoi(jObj, hA, f"{pref}_jHoi", log, step, hA_left=hA_left, nTh_left=batch["nTh_left"])
+                self.viz.render_hoi(jObj, hA, f"{pref}_jHoi", log, step, hA_left=hA_left, nTh_left=nTh_left)
             else:
                 self.viz.render_hoi(jObj, hA, f"{pref}_jHoi", log, step)
 

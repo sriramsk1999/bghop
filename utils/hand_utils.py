@@ -5,7 +5,7 @@ from collections import defaultdict
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from jutils import mesh_utils, hand_utils
+from jutils import mesh_utils, hand_utils, geom_utils
 from einops import rearrange
 
 
@@ -100,17 +100,38 @@ class BaseHandField(nn.Module):
     ):
         return
 
+    def get_left_hand_init_pose(self, N, device):
+        """Pose of left hand wrt right hand. Arbitrarily chosen so that
+        hands are at a distance, palms facing each other, pointing in opposite directions"""
+        rotmat = torch.eye(3)
+        rotmat[1,1] = -1.
+        rotmat[2,2] = -1.
+        nTh_left_rot = geom_utils.matrix_to_rotation_6d(rotmat[None]).to(device).repeat(N, 1)
+        nTh_left_tsl = torch.tensor([[0., -1., 1.]], device=device).repeat(N, 1)
+        # Scale is not optimized
+        nTh_left_scale = torch.ones([N, 3], device=device) * 5.
+        return nn.Parameter(nTh_left_rot), nn.Parameter(nTh_left_tsl), nTh_left_scale
+
     @torch.enable_grad()
-    def grid2pose_sgd(self, jsPoints_gt, opt_mode="lbfgs", field="coord", nTh_left=None):
+    def grid2pose_sgd(self, jsPoints_gt, opt_mode="lbfgs", field="coord", is_left=False):
         print("gradient descent to extract hand pose")
         N = len(jsPoints_gt)
         rtn = defaultdict(list)
         hA = nn.Parameter(self.hand_wrapper.hand_mean.repeat(N, 1))
+        params = [hA]
+        if is_left:
+            # The model is trained to regress the distance fields of both hands
+            # in the right hand's coordinate frame. Thus, while generating,
+            # we also need to optimize the transform of the left hand that brings it in
+            # the right hand's coordinate frame.
+            nTh_left_rot, nTh_left_tsl, nTh_left_scale = self.get_left_hand_init_pose(N, jsPoints_gt.device)
+            params.extend([nTh_left_rot, nTh_left_tsl])
+
         if opt_mode == "lbfgs":
-            opt = torch.optim.LBFGS([hA], lr=0.1)
+            opt = torch.optim.LBFGS(params, lr=0.1)
             T = 20
         elif opt_mode == "adam":
-            opt = torch.optim.Adam([hA], lr=1e-2)
+            opt = torch.optim.Adam(params, lr=1e-2)
             T = 1000
         H = jsPoints_gt.shape[-1]
 
@@ -120,6 +141,12 @@ class BaseHandField(nn.Module):
 
             def closure():
                 opt.zero_grad()
+                if is_left:
+                    nTh_left = geom_utils.rt_to_homo(
+                        geom_utils.rotation_6d_to_matrix(nTh_left_rot), nTh_left_tsl, nTh_left_scale
+                    )[:, None]
+                else:
+                    nTh_left = None
                 jsPoints = self.pose2grid(hA, H, field=field, tsdf=self.cfg.tsdf_hand, nTh_left=nTh_left)
                 grid_loss = 1e4 * F.mse_loss(jsPoints, jsPoints_gt)
                 reg_loss = 0.1 * F.mse_loss(
@@ -135,7 +162,14 @@ class BaseHandField(nn.Module):
             opt.step(closure)
             if i % T // 10 == 0 or i == T - 1:
                 hA_list.append(hA.cpu().detach().clone())
-        return hA.detach(), hA_list, rtn
+
+        if is_left:
+            nTh_left = geom_utils.rt_to_homo(
+                geom_utils.rotation_6d_to_matrix(nTh_left_rot), nTh_left_tsl, nTh_left_scale
+            )[:, None].detach()
+        else:
+            nTh_left = None
+        return hA.detach(), hA_list, rtn, nTh_left
 
     def pose2grid(self, hA, H, nXyz=None, field="coord", tsdf=None, nTh_left=None):
         N = len(hA)
