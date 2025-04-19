@@ -31,7 +31,14 @@ device = "cuda:0"
 
 class UniGuide:
     def __init__(self, cfg) -> None:
-        self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir).to(device)
+        self.flat_hand_mean = cfg.get("flat_hand_mean", True)
+        self.enable_bimanual = cfg.get("enable_bimanual", False)
+
+        self.hand_wrapper = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=self.flat_hand_mean).to(device)
+        if self.enable_bimanual:
+            self.hand_wrapper_left = hand_utils.ManopthWrapper(cfg.environment.mano_dir, flat_hand_mean=self.flat_hand_mean, side="left").to(device)
+        else:
+            self.hand_wrapper_left = None
         self.sd = None
         self.text_template = {}
 
@@ -42,10 +49,11 @@ class UniGuide:
         lib_name = sd.model.cfg.get("lib", None)
         if lib_name is not None:
             lib_name = osp.join(hydra_utils.get_original_cwd(), f"docs/{lib_name}.json")
+        lib_name = lib_name if osp.exists(lib_name) else None
         self.text_template = Obj2Text(lib_name)
         return sd
 
-    def vis_nSdf_hA(self, nSdf, hA, hand_wrapper, save_name):
+    def vis_nSdf_hA(self, nSdf, hA, hand_wrapper, save_name, hA_left=None, hand_wrapper_left=None, nTh_left=None):
         N = len(nSdf)
         nSdf_mesh = mesh_utils.batch_grid_to_meshes(nSdf, N, half_size=1.5)
         nTh = hand_utils.get_nTh(hA=hA, hand_wrapper=hand_wrapper)
@@ -54,6 +62,12 @@ class UniGuide:
         nHand.textures = mesh_utils.pad_texture(nHand, "blue")
         nSdf_mesh.textures = mesh_utils.pad_texture(nSdf_mesh, "yellow")
         nHoi = mesh_utils.join_scene([nSdf_mesh, nHand])
+
+        if self.enable_bimanual:
+            nHand_left, _ = hand_wrapper_left(nTh_left, hA_left)
+            nHand_left.textures = mesh_utils.pad_texture(nHand_left, "blue")
+            nHoi = mesh_utils.join_scene([nHoi, nHand_left])
+
         image_list = mesh_utils.render_geom_rot_v2(
             nHoi,
         )
@@ -86,6 +100,18 @@ class UniGuide:
         mean_loss = np.array(loss_record).mean()
         print(mean_loss)
         return mean_loss
+
+    def vis_nSdf_hA_wrapper(self, nSdf_gt, hA, hand_wrapper,
+                            save_name, hA_left, hand_wrapper_left,
+                            nTh_left_rot, nTh_left_tsl, nTh_left_scale_gt):
+        if self.enable_bimanual:
+            nTh_left = geom_utils.rt_to_homo(
+                geom_utils.rotation_6d_to_matrix(nTh_left_rot), nTh_left_tsl, nTh_left_scale_gt
+            )
+            self.vis_nSdf_hA(nSdf_gt, hA, self.hand_wrapper, save_name,
+                             hA_left=hA_left, hand_wrapper_left=self.hand_wrapper_left, nTh_left=nTh_left)
+        else:
+            self.vis_nSdf_hA(nSdf_gt, hA, self.hand_wrapper, save_name)
 
     def sds_grasp(
         self,
@@ -130,15 +156,40 @@ class UniGuide:
             )
             nTu_tsl_gt = torch.zeros([bs, 3], device=device)
         hA_pred = nn.Parameter(hA.clone())
+
+        if self.enable_bimanual:
+            hA_left = self.hand_wrapper_left.hand_mean.clone().repeat(bs, 1)
+            hA_left_pred = nn.Parameter(hA_left.clone())
+            nTh_left_scale_gt = torch.ones([bs, 3], device=device) * 5
+            nTh_left_rot_gt = (
+                geom_utils.matrix_to_rotation_6d(torch.eye(3)[None])
+                .to(device)
+                .repeat(bs, 1)
+            )
+            nTh_left_tsl_gt = torch.zeros([bs, 3], device=device)
+        else:
+            hA_left, hA_left_pred, nTh_left_scale_gt, nTh_left_rot_gt, nTh_left_tsl_gt = None, None, None, None, None
+            nTh_left_rot, nTh_left_tsl = None, None
+
         lr = 1e-2 * bs
         if opt_nTu:
             nTu_rot = nn.Parameter(nTu_rot_gt)
             nTu_tsl = nn.Parameter(nTu_tsl_gt)
-            optimizer = torch.optim.AdamW([nTu_rot, nTu_tsl, hA_pred], lr=lr)
+            params = [nTu_rot, nTu_tsl, hA_pred]
+            if self.enable_bimanual:
+                nTh_left_rot = nn.Parameter(nTh_left_rot_gt.clone())
+                nTh_left_tsl = nn.Parameter(nTh_left_tsl_gt.clone())
+                params.extend([nTh_left_rot, nTh_left_tsl, hA_left_pred])
         else:
             nTu_rot = nTu_rot_gt
             nTu_tsl = nTu_tsl_gt
-            optimizer = torch.optim.AdamW([hA_pred], lr=lr)
+            params = [hA_pred]
+            if self.enable_bimanual:
+                nTh_left_rot = nTh_left_rot_gt
+                nTh_left_tsl = nTh_left_tsl_gt
+                params.extend([hA_left_pred])
+
+        optimizer = torch.optim.AdamW(params, lr=lr)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=T, eta_min=lr / 100
         )
@@ -146,7 +197,8 @@ class UniGuide:
         text = self.text_template(text)
         nXyz = mesh_utils.create_sdf_grid(1, uObj.shape[-1], 1.5, device=device)
 
-        self.vis_nSdf_hA(nSdf_gt, hA, self.hand_wrapper, save_pref + "_init")
+        self.vis_nSdf_hA_wrapper(nSdf_gt, hA, self.hand_wrapper, save_pref + "_init",
+                                 hA_left, self.hand_wrapper_left, nTh_left_rot_gt, nTh_left_tsl_gt, nTh_left_scale_gt)
 
         for t in tqdm(range(T + 1)):
             optimizer.zero_grad()
@@ -157,7 +209,16 @@ class UniGuide:
             nSdf_pred, _ = mesh_utils.transform_sdf_grid(
                 uObj, nTu_cur, N=64, lim=1.5 / 1.5, extra=False
             )
-            batch = sd.model.set_inputs({"nSdf": nSdf_pred, "hA": hA_pred})
+
+            inputs = {"nSdf": nSdf_pred, "hA": hA_pred}
+            if self.enable_bimanual:
+                nTh_left = geom_utils.rt_to_homo(
+                    geom_utils.rotation_6d_to_matrix(nTh_left_rot), nTh_left_tsl, nTh_left_scale_gt
+                )
+                inputs["hA_left"] = hA_left_pred
+                inputs["nTh_left"] = nTh_left.unsqueeze(0)
+
+            batch = sd.model.set_inputs(inputs)
             batch["nXyz"] = nXyz
             batch["text"] = text
 
@@ -179,9 +240,8 @@ class UniGuide:
                 print(
                     f"[Global Step] {t:04d} [Loss] {loss.item():.4f} [SDS Loss] {sds_loss.item():.4f}"
                 )
-                self.vis_nSdf_hA(
-                    nSdf_pred, hA_pred, self.hand_wrapper, save_pref + f"_t{t:04d}_pred"
-                )
+                self.vis_nSdf_hA_wrapper(nSdf_pred, hA_pred, self.hand_wrapper, save_pref + f"_t{t:04d}_pred",
+                                        hA_left_pred, self.hand_wrapper_left, nTh_left_rot, nTh_left_tsl, nTh_left_scale_gt)
 
         nTu_cur = geom_utils.rt_to_homo(
             geom_utils.rotation_6d_to_matrix(nTu_rot), nTu_tsl, nTu_scale_gt
@@ -189,9 +249,8 @@ class UniGuide:
         nSdf_pred, _ = mesh_utils.transform_sdf_grid(
             uObj, nTu_cur, N=64, lim=1.5 / 1.5, extra=False
         )
-        self.vis_nSdf_hA(
-            nSdf_pred, hA_pred, self.hand_wrapper, save_pref + f"_t{t:04d}_pred"
-        )
+        self.vis_nSdf_hA_wrapper(nSdf_pred, hA_pred, self.hand_wrapper, save_pref + f"_t{t:04d}_pred",
+                                hA_left_pred, self.hand_wrapper_left, nTh_left_rot, nTh_left_tsl, nTh_left_scale_gt)
 
         nTu_cur = geom_utils.rt_to_homo(
             geom_utils.rotation_6d_to_matrix(nTu_rot), nTu_tsl, nTu_scale_gt
@@ -323,7 +382,7 @@ def list_all_inputs(args):
     return sdf_list
 
 
-@main(config_path="configs", config_name="grasp_syn", version_base=None)
+@main(config_path="configs", config_name="grasp_syn_bimanual", version_base=None)
 @slurm_utils.slurm_engine()
 def batch_uniguide(args):
     torch.manual_seed(args.seed)
@@ -391,6 +450,9 @@ def batch_uniguide(args):
                 ],
             )
             web_utils.run(web_file, sorted_cell_list, width=256, inplace=True)
+
+    print("REFINEMENT FOR BIMANUAL NOT IMPLEMENTED")
+    breakpoint()
 
     for t, sdf_file in enumerate(tqdm(sdf_list)):
         if args.get("refine_grasp", False):

@@ -90,6 +90,7 @@ class SDLoss:
             lib_name = osp.join(
                 self.model.cfg.environment.data_dir, f"lib/{lib_name}.json"
             )
+        lib_name = lib_name if osp.exists(lib_name) else None
         self.text_template = Obj2Text(lib_name)
 
     def get_weight(self, t, shape, method: str):
