@@ -75,9 +75,18 @@ class UniGuide:
         return
 
     @torch.no_grad()
-    def eval_grasp(self, sd: SDLoss, nSdf_pred, hA_pred, text, cfg, save_pref, S=5):
+    def eval_grasp(self, sd: SDLoss, nSdf_pred, hA_pred, text, cfg, save_pref, S=5,
+                   hA_left_pred=None, nTh_left_rot=None, nTh_left_tsl=None, nTh_left_scale_gt=None):
         loss_record = []
-        batch = sd.model.set_inputs({"nSdf": nSdf_pred, "hA": hA_pred})
+        inputs = {"nSdf": nSdf_pred, "hA": hA_pred}
+        if self.enable_bimanual:
+            nTh_left = geom_utils.rt_to_homo(
+                geom_utils.rotation_6d_to_matrix(nTh_left_rot), nTh_left_tsl, nTh_left_scale_gt
+            )
+            inputs["hA_left"] = hA_left_pred
+            inputs["nTh_left"] = nTh_left.unsqueeze(0)
+
+        batch = sd.model.set_inputs(inputs)
         nXyz = mesh_utils.create_sdf_grid(1, nSdf_pred.shape[-1], 1.5, device=device)
         batch["nXyz"] = nXyz
         text = self.text_template(text)
@@ -255,7 +264,8 @@ class UniGuide:
         nTu_cur = geom_utils.rt_to_homo(
             geom_utils.rotation_6d_to_matrix(nTu_rot), nTu_tsl, nTu_scale_gt
         )
-        pred_loss = self.eval_grasp(sd, nSdf_pred, hA_pred, text, cfg, save_pref)
+        pred_loss = self.eval_grasp(sd, nSdf_pred, hA_pred, text, cfg, save_pref,
+                                    hA_left_pred=hA_left_pred, nTh_left_rot=nTh_left_rot, nTh_left_tsl=nTh_left_tsl, nTh_left_scale_gt=nTh_left_scale_gt)
 
         return nTu_cur, hA_pred, pred_loss
 
