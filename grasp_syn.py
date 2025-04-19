@@ -167,20 +167,25 @@ class UniGuide:
         hA_pred = nn.Parameter(hA.clone())
 
         if self.enable_bimanual:
+            # Position hand arbitrarily
             hA_left = self.hand_wrapper_left.hand_mean.clone().repeat(bs, 1)
             hA_left_pred = nn.Parameter(hA_left.clone())
             nTh_left_scale_gt = torch.ones([bs, 3], device=device) * 5
+            rotmat = torch.eye(3)
+            rotmat[1,1] = -1
+            rotmat[2,2] = -1
             nTh_left_rot_gt = (
-                geom_utils.matrix_to_rotation_6d(torch.eye(3)[None])
+                geom_utils.matrix_to_rotation_6d(rotmat[None])
                 .to(device)
                 .repeat(bs, 1)
             )
             nTh_left_tsl_gt = torch.zeros([bs, 3], device=device)
+            nTh_left_tsl_gt[0,1] = -1
         else:
             hA_left, hA_left_pred, nTh_left_scale_gt, nTh_left_rot_gt, nTh_left_tsl_gt = None, None, None, None, None
             nTh_left_rot, nTh_left_tsl = None, None
 
-        lr = 1e-2 * bs
+        lr = 3e-2 * bs
         if opt_nTu:
             nTu_rot = nn.Parameter(nTu_rot_gt)
             nTu_tsl = nn.Parameter(nTu_tsl_gt)
@@ -244,6 +249,8 @@ class UniGuide:
 
             optimizer.step()
             scheduler.step()
+
+            # print([p.grad.abs().mean().item() for p in params])
 
             if t % vis_every_n == 0:
                 print(
