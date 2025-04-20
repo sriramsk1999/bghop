@@ -12,7 +12,7 @@ load_name: bimanual_v1
 load_index: ${load_dir}/${load_name}
 load_pt: ${output}/${load_index}/checkpoints/last.ckpt
 
-T: 500
+T: 1000
 seed: 123
 
 sd_para:

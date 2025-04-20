@@ -2,7 +2,7 @@ import json
 
 
 class Obj2Text:
-    def __init__(self, lib=None):
+    def __init__(self, lib=None, enable_bimanual=False):
         if lib is None:
             self.lib = None
             self.lower_lib = None
@@ -11,13 +11,19 @@ class Obj2Text:
             self.lib = json.load(open(lib))
             self.lower_lib = {k.lower(): v for k, v in self.lib.items()}
 
-        self.template = "an image of a hand grasping a {}"
+        self.enable_bimanual = enable_bimanual
+        if self.enable_bimanual:
+            self.template = "an image of a hand grasping a {}"
+            self.starting_temp = "an image of a hand grasping"
+        else:
+            self.template = "grasp {} with both hands"
+            self.starting_temp = "grasp"
 
     def __call__(self, text):
         if isinstance(text, str):
             if len(text) == 0:
                 return ""
-            if text.startswith("an image of a hand grasping"):
+            if text.startswith(self.starting_temp):
                 # print('emmm nested text???')
                 return text
             if self.lib is None:

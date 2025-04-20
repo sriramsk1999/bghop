@@ -186,24 +186,34 @@ class UniGuide:
             nTh_left_rot, nTh_left_tsl = None, None
 
         lr = 3e-2 * bs
+        params = []
         if opt_nTu:
             nTu_rot = nn.Parameter(nTu_rot_gt)
             nTu_tsl = nn.Parameter(nTu_tsl_gt)
-            params = [nTu_rot, nTu_tsl, hA_pred]
+            params.extend([
+                {'params': [nTu_rot], 'lr': lr},
+                {'params': [nTu_tsl], 'lr': lr},
+                {'params': [hA_pred], 'lr': lr}
+            ])
             if self.enable_bimanual:
                 nTh_left_rot = nn.Parameter(nTh_left_rot_gt.clone())
                 nTh_left_tsl = nn.Parameter(nTh_left_tsl_gt.clone())
-                params.extend([nTh_left_rot, nTh_left_tsl, hA_left_pred])
+                # Higher lr for left hand pose optim
+                params.extend([
+                    {'params': [nTh_left_rot], 'lr': lr*2},
+                    {'params': [nTh_left_tsl], 'lr': lr*2},
+                    {'params': [hA_left_pred], 'lr': lr}
+                ])
         else:
             nTu_rot = nTu_rot_gt
             nTu_tsl = nTu_tsl_gt
-            params = [hA_pred]
+            params.extend([{'params': [hA_pred], 'lr': lr}])
             if self.enable_bimanual:
                 nTh_left_rot = nTh_left_rot_gt
                 nTh_left_tsl = nTh_left_tsl_gt
-                params.extend([hA_left_pred])
+                params.extend([{'params': [hA_left_pred], 'lr': lr}])
 
-        optimizer = torch.optim.AdamW(params, lr=lr)
+        optimizer = torch.optim.AdamW(params)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=T, eta_min=lr / 100
         )
