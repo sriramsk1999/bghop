@@ -35,7 +35,7 @@ oakink_list = [
 def sample_hoi(args):
     torch.manual_seed(args.seed)
     model = model_utils.load_from_checkpoint(args.load_pt)
-    enable_bimanual = model.cfg.enable_bimanual
+    enable_bimanual = model.cfg.get("enable_bimanual", False)
 
     model = model.to(device)
     lim = model.cfg.side_lim
