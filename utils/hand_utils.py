@@ -100,17 +100,86 @@ class BaseHandField(nn.Module):
     ):
         return
 
-    def get_left_hand_init_pose(self, N, device):
-        """Pose of left hand wrt right hand. Arbitrarily chosen so that
-        hands are at a distance, palms facing each other, pointing in opposite directions"""
-        rotmat = torch.eye(3)
-        rotmat[1,1] = -1.
-        rotmat[2,2] = -1.
-        nTh_left_rot = geom_utils.matrix_to_rotation_6d(rotmat[None]).to(device).repeat(N, 1)
-        nTh_left_tsl = torch.tensor([[0., -1., 1.]], device=device).repeat(N, 1)
-        # Scale is not optimized
-        nTh_left_scale = torch.ones([N, 3], device=device) * 5.
-        return nn.Parameter(nTh_left_rot), nn.Parameter(nTh_left_tsl), nTh_left_scale
+    @torch.no_grad()
+    def find_nTh_left(self, left_in_right_distance_field, hA_left, field):
+        """
+        The model is trained to predict the distance fields of both hands
+        in the right hand's coordinate frame. Thus, while generating,
+        we need to find the transform that best aligns the left hand
+        to the right hand's coordinate frame.
+        """
+        def unravel_index(index, shape):
+            idx = index
+            coords = []
+            for dim_size in reversed(shape):
+                coords.append(idx % dim_size)
+                idx = idx // dim_size
+            return tuple(reversed(coords))  # Reverse to match original dimension order
+
+        def find_rigid_transform(src, dst):
+            assert src.shape == dst.shape and src.shape[1] == 3, "Inputs must be (N, 3)"
+
+            # Compute centroids
+            centroid_src = src.mean(dim=0)  # Shape: (3,)
+            centroid_dst = dst.mean(dim=0)  # Shape: (3,)
+
+            # Center the points
+            src_centered = src - centroid_src  # Shape: (20, 3)
+            dst_centered = dst - centroid_dst  # Shape: (20, 3)
+
+            # Compute covariance matrix
+            H = src_centered.T @ dst_centered  # Shape: (3, 3)
+
+            # SVD for rotation
+            U, S, Vt = torch.linalg.svd(H)  # U, Vt: (3, 3)
+            R = Vt.T @ U.T  # Initial rotation
+
+            # Fix reflection (ensure proper rotation)
+            if torch.det(R) < 0:
+                Vt[:, 2] *= -1  # Flip last column
+                R = Vt.T @ U.T
+
+            # Compute translation
+            t = centroid_dst - R @ centroid_src  # Shape: (3,)
+
+            return R, t  # R: (3, 3), t: (3,)
+
+        H = left_in_right_distance_field.shape[-1]
+        N = len(hA_left)
+        nJoints = left_in_right_distance_field.shape[1]
+        left_in_left_distance_field = self.pose2grid(hA_left, H, field=field, tsdf=self.cfg.tsdf_hand)
+        lim = self.cfg.side_lim
+        nXyz = mesh_utils.create_sdf_grid(N, H, lim, device=hA_left.device)
+        n_leftTh_left = hand_utils.get_nTh(hand_wrapper=self.hand_wrapper, hA=hA_left)
+
+        # Get the coords of voxels with minimum distances to joints
+        # lIl - left in left coord frame
+        # lIr - left in right coord frame
+        min_lIr_coords, min_lIl_coords = [], []
+        for j in range(N):
+            for i in range(nJoints):
+                flat_idx = torch.argmin(left_in_right_distance_field[j][i])
+                min_lIr_coords.append(unravel_index(flat_idx.item(), left_in_right_distance_field[j][i].shape))
+
+                flat_idx = torch.argmin(left_in_left_distance_field[j][i])
+                min_lIl_coords.append(unravel_index(flat_idx.item(), left_in_left_distance_field[j][i].shape))
+
+        min_lIr_coords = torch.tensor(min_lIr_coords).reshape(N, nJoints, 3)
+        min_lIl_coords = torch.tensor(min_lIl_coords).reshape(N, nJoints, 3)
+        batch_idx = torch.arange(N)[:, None].expand(N, nJoints)
+
+        left_in_right_pts = nXyz[batch_idx, min_lIr_coords[:, :, 0], min_lIr_coords[:, :, 1], min_lIr_coords[:, :, 2]]
+        left_in_left_pts = nXyz[batch_idx, min_lIl_coords[:, :, 0], min_lIl_coords[:, :, 1], min_lIl_coords[:, :, 2]]
+
+        nTh_left = []
+        for i in range(N):
+            R, t = find_rigid_transform(left_in_left_pts[i], left_in_right_pts[i])
+            nTn_left_ = geom_utils.rt_to_homo(R, t)
+            nTh_left_ = nTn_left_ @ n_leftTh_left[i]
+            nTh_left.append(nTh_left_)
+
+        return torch.stack(nTh_left)[:, None]
+
 
     @torch.enable_grad()
     def grid2pose_sgd(self, jsPoints_gt, opt_mode="lbfgs", field="coord", is_left=False):
@@ -120,12 +189,9 @@ class BaseHandField(nn.Module):
         hA = nn.Parameter(self.hand_wrapper.hand_mean.repeat(N, 1))
         params = [hA]
         if is_left:
-            # The model is trained to regress the distance fields of both hands
-            # in the right hand's coordinate frame. Thus, while generating,
-            # we also need to optimize the transform of the left hand that brings it in
-            # the right hand's coordinate frame.
-            nTh_left_rot, nTh_left_tsl, nTh_left_scale = self.get_left_hand_init_pose(N, jsPoints_gt.device)
-            params.extend([nTh_left_rot, nTh_left_tsl])
+            nTh_left = self.find_nTh_left(jsPoints_gt, hA, field)
+        else:
+            nTh_left = None
 
         if opt_mode == "lbfgs":
             opt = torch.optim.LBFGS(params, lr=0.1)
@@ -141,12 +207,6 @@ class BaseHandField(nn.Module):
 
             def closure():
                 opt.zero_grad()
-                if is_left:
-                    nTh_left = geom_utils.rt_to_homo(
-                        geom_utils.rotation_6d_to_matrix(nTh_left_rot), nTh_left_tsl, nTh_left_scale
-                    )[:, None]
-                else:
-                    nTh_left = None
                 jsPoints = self.pose2grid(hA, H, field=field, tsdf=self.cfg.tsdf_hand, nTh_left=nTh_left)
                 grid_loss = 1e4 * F.mse_loss(jsPoints, jsPoints_gt)
                 reg_loss = 0.1 * F.mse_loss(
@@ -163,12 +223,6 @@ class BaseHandField(nn.Module):
             if i % T // 10 == 0 or i == T - 1:
                 hA_list.append(hA.cpu().detach().clone())
 
-        if is_left:
-            nTh_left = geom_utils.rt_to_homo(
-                geom_utils.rotation_6d_to_matrix(nTh_left_rot), nTh_left_tsl, nTh_left_scale
-            )[:, None].detach()
-        else:
-            nTh_left = None
         return hA.detach(), hA_list, rtn, nTh_left
 
     def pose2grid(self, hA, H, nXyz=None, field="coord", tsdf=None, nTh_left=None):
