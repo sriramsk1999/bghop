@@ -134,6 +134,7 @@ class UniGuide:
         cfg=None,
         opt_nTu=True,
         save_pref="",
+        rand_tsl=1,
     ):
         """
         Args:
@@ -171,16 +172,15 @@ class UniGuide:
             hA_left = self.hand_wrapper_left.hand_mean.clone().repeat(bs, 1)
             hA_left_pred = nn.Parameter(hA_left.clone())
             nTh_left_scale_gt = torch.ones([bs, 3], device=device) * 5
-            rotmat = torch.eye(3)
-            rotmat[1,1] = -1
-            rotmat[2,2] = -1
+            rot = geom_utils.random_rotations(bs, device=device)
             nTh_left_rot_gt = (
-                geom_utils.matrix_to_rotation_6d(rotmat[None])
+                geom_utils.matrix_to_rotation_6d(rot)
                 .to(device)
                 .repeat(bs, 1)
             )
-            nTh_left_tsl_gt = torch.zeros([bs, 3], device=device)
-            nTh_left_tsl_gt[0,1] = -1
+            r = rand_tsl * 5  # in meter --> scale in normalized frame
+            nTh_left_tsl_gt = torch.rand([bs, 3], device=device) * r * 2 - r
+
         else:
             hA_left, hA_left_pred, nTh_left_scale_gt, nTh_left_rot_gt, nTh_left_tsl_gt = None, None, None, None, None
             nTh_left_rot, nTh_left_tsl = None, None
@@ -190,30 +190,22 @@ class UniGuide:
         if opt_nTu:
             nTu_rot = nn.Parameter(nTu_rot_gt)
             nTu_tsl = nn.Parameter(nTu_tsl_gt)
-            params.extend([
-                {'params': [nTu_rot], 'lr': lr},
-                {'params': [nTu_tsl], 'lr': lr},
-                {'params': [hA_pred], 'lr': lr}
-            ])
+            params.extend([nTu_rot, nTu_tsl, hA_pred])
             if self.enable_bimanual:
                 nTh_left_rot = nn.Parameter(nTh_left_rot_gt.clone())
                 nTh_left_tsl = nn.Parameter(nTh_left_tsl_gt.clone())
                 # Higher lr for left hand pose optim
-                params.extend([
-                    {'params': [nTh_left_rot], 'lr': lr*2},
-                    {'params': [nTh_left_tsl], 'lr': lr*2},
-                    {'params': [hA_left_pred], 'lr': lr}
-                ])
+                params.extend([nTh_left_rot, nTh_left_tsl, hA_left_pred])
         else:
             nTu_rot = nTu_rot_gt
             nTu_tsl = nTu_tsl_gt
-            params.extend([{'params': [hA_pred], 'lr': lr}])
+            params.extend([hA_pred])
             if self.enable_bimanual:
                 nTh_left_rot = nTh_left_rot_gt
                 nTh_left_tsl = nTh_left_tsl_gt
-                params.extend([{'params': [hA_left_pred], 'lr': lr}])
+                params.extend([hA_left_pred])
 
-        optimizer = torch.optim.AdamW(params)
+        optimizer = torch.optim.AdamW(params, lr=lr)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=T, eta_min=lr / 100
         )
@@ -281,8 +273,9 @@ class UniGuide:
         nTu_cur = geom_utils.rt_to_homo(
             geom_utils.rotation_6d_to_matrix(nTu_rot), nTu_tsl, nTu_scale_gt
         )
-        pred_loss = self.eval_grasp(sd, nSdf_pred, hA_pred, text, cfg, save_pref,
-                                    hA_left_pred=hA_left_pred, nTh_left_rot=nTh_left_rot, nTh_left_tsl=nTh_left_tsl, nTh_left_scale_gt=nTh_left_scale_gt)
+        # pred_loss = self.eval_grasp(sd, nSdf_pred, hA_pred, text, cfg, save_pref,
+        #                             hA_left_pred=hA_left_pred, nTh_left_rot=nTh_left_rot, nTh_left_tsl=nTh_left_tsl, nTh_left_scale_gt=nTh_left_scale_gt)
+        pred_loss = 0
 
         return nTu_cur, hA_pred, pred_loss
 
@@ -446,6 +439,7 @@ def batch_uniguide(args):
                     cfg=args,
                     T=args.T,
                     save_pref=save_pref,
+                    rand_tsl=args.rand_tsl
                 )
                 nTu = nTnp @ npTu
 
@@ -478,8 +472,8 @@ def batch_uniguide(args):
             )
             web_utils.run(web_file, sorted_cell_list, width=256, inplace=True)
 
-    print("REFINEMENT FOR BIMANUAL NOT IMPLEMENTED")
-    breakpoint()
+    print("REFINEMENT FOR BIMANUAL NOT IMPLEMENTED. EXITING")
+    exit()
 
     for t, sdf_file in enumerate(tqdm(sdf_list)):
         if args.get("refine_grasp", False):

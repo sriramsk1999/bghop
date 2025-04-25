@@ -236,6 +236,13 @@ class SDLoss:
             hand_loss = 0.5 * weight * w * w_hand * F.mse_loss(batch["hand"], hand_pred)
             grad += hand_loss
             losses["diff_hand"] = hand_loss
+
+        if "hand_left" in start_pred_dict:
+            hand_pred_left = start_pred_dict["hand_left"]
+            w_hand = kwargs.get("w_hand", 1)
+            hand_left_loss = 0.5 * weight * w * w_hand * F.mse_loss(batch["hand_left"], hand_pred_left)
+            grad += hand_left_loss
+            losses["diff_hand_left"] = hand_left_loss
         extras = {
             "start_pred": start_pred,
             "w": w,
@@ -244,6 +251,8 @@ class SDLoss:
         }
         if "hand" in start_pred_dict:
             extras["hand_pred"] = hand_pred
+        if "hand_left" in start_pred_dict:
+            extras["hand_pred"] = hand_pred_left
         return grad, batch["image"], extras
 
     def apply_sd(
