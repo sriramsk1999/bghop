@@ -925,7 +925,7 @@ class Trainer(nn.Module):
             {"image": sd_rtn["start_pred"]}, offset
         )["jObj"]
         if "hand_pred" in sd_rtn:
-            hA, _, _ = self.sd_loss.model.hand_cond.grid2pose_sgd(sd_rtn["hand_pred"])
+            hA, _, _, _ = self.sd_loss.model.hand_cond.grid2pose_sgd(sd_rtn["hand_pred"])
             jHand, _ = self.hand_wrapper(nTh, hA)
             jHand.textures = mesh_utils.pad_texture(jHand, "blue")
         jHoi_gt = mesh_utils.join_scene([jHand, jObj_gt])

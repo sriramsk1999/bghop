@@ -77,7 +77,7 @@ class CheckpointIO(object):
         if len(ckpts) > 0 and not no_reload:
             ckpt_file = ckpts[-1]
             log.info('=> Loading checkpoint from local file: ' + str(ckpt_file))
-            state_dict = torch.load(ckpt_file, map_location=map_location)
+            state_dict = torch.load(ckpt_file, map_location=map_location, weights_only=False)
 
             if len(ignore_keys) > 0:
                 to_load_state_dict = {}
