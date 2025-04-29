@@ -65,7 +65,37 @@ With quick visualizations:
 ```
 python -m ddpm3d.base environment.data_dir=/path/to/arctic/data log_frequency=10 print_frequency=10
 ```
-  
+
+### Grasp Synthesis
+
+```
+python -m grasp_syn -m grasp_dir=\${environment.data_dir}/HO3D_grasp
+```
+
+### Generation
+
+```
+python -m generate S=3 cat_list=box
+```
+
+### Reconstruction (in progress.....)
+
+```
+python -m train  -m   \
+    expname=recon/\${data.index} \
+    data.index=s05.box_grab_01 \
+    data=arctic
+```
+
+Reconstruction needs additional data to be placed in `data/arctic_clip/<seq-name>`:
+- `text.txt` - Name of object
+- `image/` - Directory containing images of resolution 512x512
+- `hand_mask` - Binary mask of hand
+- `obj_mask` - Binary mask of object
+- `cameras_hoi_smooth_100.npz` - .npz file containing keys `K_pix` (intrinsics as a 4x4 for some reason) and `cTw` (world to camera).
+- `hands_smooth_100.npz` - .npz file containing keys `hA` (mano theta) and `beta` (mano beta) 
+
+
 ## Expected directory structure for ARCTIC
 
 ```
