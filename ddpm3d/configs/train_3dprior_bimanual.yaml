@@ -118,4 +118,4 @@ cudnn_benchmark: True
 
 flat_hand_mean: False # ARCTIC MANO is with flat_hand_mean=False
 enable_bimanual: True
-freeze_except_input_output: True # Freeze all except input/output layers
+freeze_except_input_output: False # Freeze all except input/output layers

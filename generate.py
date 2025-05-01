@@ -110,7 +110,7 @@ def sample_hoi(args):
 
         mesh_utils.dump_meshes(pref + "_jHoi", jHoi)
         image_list = mesh_utils.render_geom_rot_v2(jHoi)
-        image_utils.save_gif(image_list, pref + "_jHoi")
+        image_utils.save_gif(image_list, pref + "_jHoi", max_size=2048)
 
         os.rmdir(lock_file)
 
