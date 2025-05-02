@@ -62,7 +62,7 @@ class SDLoss:
     def to(self, device):
         self.model.to(device)
 
-    def init_model(self, device="cuda"):
+    def init_model(self, device="cuda", enable_bimanual=False):
         print(self.ckpt_path)
         self.model = load_from_checkpoint(self.ckpt_path)
         self.model.eval()
@@ -91,7 +91,7 @@ class SDLoss:
                 self.model.cfg.environment.data_dir, f"lib/{lib_name}.json"
             )
         lib_name = lib_name if osp.exists(lib_name) else None
-        self.text_template = Obj2Text(lib_name)
+        self.text_template = Obj2Text(lib_name, enable_bimanual=enable_bimanual)
 
     def get_weight(self, t, shape, method: str):
         if method == "dream":

@@ -1,158 +1,147 @@
-# G-HOP: Generative Hand-Object Prior for Interaction Reconstruction and Grasp Synthesis
-Yufei Ye, Abhinav Gupta, Kris Kitani, Shubham Tulsiani, in CVPR2024
-
-[[Project Website]](https://judyye.github.io/ghop-www) [[Arxiv]](https://arxiv.org/abs/2404.12383)
+# BG-HOP: A Bimanual Generative Hand-Object Prior
 
 ## Installation 
-0. Start with a clean environment
-    ```
-    conda create -n ghop python=3.10 -y
-    conda activate ghop
-    ```
-1.  **Easy setup** (environment, pre-trained models, data, etc. ) Installing pytorch3d may take a while.
-    ```
-    bash scripts/one_click.sh
-    ```
-2. **Download MANO model.**
-Due to license constraints, please download MANO model from [their official website](https://mano.is.tue.mpg.de/). Place it under `third_party/`. 
 
-The path variables can also be re-defined at [`ddpm3d/configs/environment/default.yaml`](ddpm3d/configs/environment/default.yaml) (prior) and [`configs/environment/default.yaml`](configs/environment/default.yaml) (reconstruction part). 
+- Follow the installation steps in [ghop.md](ghop.md).
+- Download pretrained checkpoints from [huggingface.co/sriramsk/bghop](https://huggingface.co/sriramsk/bghop) and place them in `output/`.
 
-<details>
-  <summary>Here is the folder structure that our code assumes.</summary>
-  
-  ```
-  output/
-    # pretrained diffusion model
-    joint_3dprior/
-      mix_data/
-        checkpoints/
-        config.yaml
-      hoi4d/
-        checkpoints/
-        config.yaml
-    
-    # Our test-time optimization results
-    hoi4d/
-      Mug_1/
-        ckpts/
-        config.yaml
-      Mug_2/
-      ...
+### Sample HOI Generations
 
-  # preprocessed data
-  data/
-    # preprocessed data for video reconstruction
-    HOI4D_clip/
-      Mug_1/
-        image/
-        mocap/
-        ....
-      Mug_2/
-      ...
-    # preprocessed data for grasp synthesis
-    HO3D_Grasp/  
-      003_cracker_box/
-        obj.txt 
-        oObj.obj 
-        uSdf.npz
-      ...
-
-
-  # MANO
-  third_party/mano_v1_2/models/
-    MANO_RIGHT.pkl
-    MANO_UV_right.obj
-    ...
-  ```
-  </details>
-
-## Inference
-### Sample Hand-Object Interactions
-```
-python -m generate S=3 \
-    cat_list=bowl+camera+hammer+binoculars+flashlight  \
-    load_index=joint_3dprior/mix_data \
-```
-
-
-The output are 3 HOI generations per categories, saved at `${environment.output}/\${load_index}/vis`.
-
-The output should be similar to the following:
-| camera | ![image](docs/camera_jHoi.gif) | 
+| notebook | ![image](docs/biman_notebook_gen.gif) | 
 | --- | --- |
-| hammer | ![image](docs/hammer_jHoi.gif) | 
+| ketchup | ![image](docs/biman_ketchup_gen.gif) | 
+
+### Sample Grasp Synthesis
+
+| banana | ![image](docs/biman_banana_grasp.gif) | 
+| --- | --- |
+| potted meat can | ![image](docs/biman_potted_meat_can_grasp.gif) | 
 
 
-### HOI Reconstruction from Videos
-- **Visualize our reconstructions**
+## Notes for training BG-HOP
 
-    Suppose the models are under `${environment.output}/hoi4d/`. The following command will render all models that matches `${load_folder}*` and save the rendering to `${load_folder}/SOME_MODEL/vis_clips`.
-    ```
-    python -m tools.vis_clips  -m \
-        load_folder=hoi4d/     video=True  
-    ```
-    Note there is a `/` at the end of the `load_folder` since the search pattern is `${load_folder}*`.
+- Changes:
+  - Change wandb username in `ddpm3d/configs/environment/default.yaml` and `configs/environment/default.yaml`
+  - Run dummy training with:
+  `python -m ddpm3d.base`
 
-The output should be like the following: 
-| Input | Novel View | HOI |
-| --- | --- | --- |
-| ![image](docs/kettle_2/input.gif) | ![image](docs/kettle_2/render_1.gif) | ![image](docs/kettle_2/vHoi.gif)
-
-    
-- **Run your own HOI4D reconstruction** (~1 hour):
-    
-    Suppose the sequences are under `${environment.data_dir}/HOI4D_clip/`
-    + Optimize one sequence:
-    ```
-    python -m train  -m   \
-        expname=recon/\${data.index} \
-        data.index=Kettle_1 \
-    ```
-    + Optimize all HOI4D sequences: 
-    ```
-    python -m train  -m   \
-        expname=recon/\${data.index} \
-        data.cat=Mug,Bottle,Kettle,Bowl,Knife,ToyCar data.ind=1,2 \
-    ```
-- **Run on custom data**. 
-    Please refer to [the preprocess process](https://github.com/JudyYe/diffhoi_barely_clean?tab=readme-ov-file#run-on-custom-data) in our prior work.
-
-
-### Human Grasp Syntheis
-- Grasp objects in demos. 
-    ```
-    python  -m grasp_syn -m grasp_dir=\${environment.data_dir}/HO3D_grasp
-    ```
-- Preprocess your own data. Given an object mesh, we need to preprocess the mesh to specify its class name and to compute its SDF grid. An example code to preprocess YCB objects can be found [here](prprocess/make_grasp.py). 
-
-<!-- 
-## Train / Finetune on your own dataset
-
-
-To train your own model,  implement your own dataloader and run: 
+- For some reason, there was some issue with the checkpoint having extra MANO params. Getting around it:
 ```
-python -m  ddpm3d.base -m \
-  expname=your_own_model \
-  # optional
-  ckpt=PATH_TO_PRETRAINED_MODEL \
-``` -->
+import torch
+ckpt = torch.load("output/joint_3dprior/mix_data/checkpoints/last.ckpt")
+
+for key in ckpt["state_dict"].keys():
+   if 'verts_uv' in key:
+      ckpt["state_dict"][key] = ckpt["state_dict"][key][:, :891, :]
+   elif 'faces_uv' in key or 'hand_faces' in key:
+      ckpt["state_dict"][key] = ckpt["state_dict"][key][:, :1538, :]
+
+del ckpt["state_dict"]["glide_model.text_cond_model.model.text_model.embeddings.position_ids"]
+
+torch.save(ckpt, "output/joint_3dprior/mix_data/checkpoints/last_modified.ckpt")
+```
+- ARCTIC dataset has MANO params with `flat_hand_mean=False`, since G-HOP was trained with datasets having `flat_hand_mean=True`, these values are in the checkpoint and will overwrite our changes. To fix, modify the checkpoint:
+```
+import torch
+ckpt = torch.load("output/joint_3dprior/mix_data/checkpoints/last_modified.ckpt")
+
+keys = [i for i in ckpt["state_dict"] if "th_hands_mean" in i]
+for key in keys:
+    ckpt["state_dict"][key] = ckpt["state_dict"]["ae.model.hand_cond.hand_wrapper.hand_mean"]
+torch.save(ckpt, "output/joint_3dprior/mix_data/checkpoints/last_modified.ckpt")
+```
+
+### Pre-processing ARCTIC
+
+- Generate articulated versions of the various object meshes so that we can precompute SDFs:
+```python preprocess/arctic_articulated_meshes.py --root </path/to/arctic/data>```
+
+- Generate SDFs for articulated meshes (remember to change paths):
+```
+python -m preprocess.make_sdf_grid --ds arctic
+```
+(I needed to set `PYOPENGL_PLATFORM=egl` to get it working)
+
+- Generate train/val splits by copying `preprocess/arctic_contact.patch` and `preprocess/process_seqs_contact.py` to the the ARCTIC repo (`arctic/scripts_data`) and then running:
+```
+git apply scripts_data/arctic_contact.patch
+python scripts_data/process_seqs_contact.py --export_verts
+```
+
+### Train
+
+Bimanual:
+```
+python -m ddpm3d.base environment.data_dir=/path/to/arctic/data enable_bimanual=True
+```
+
+Single hand:
+```
+python -m ddpm3d.base environment.data_dir=/path/to/arctic/data enable_bimanual=False
+```
+
+With quick visualizations:
+```
+python -m ddpm3d.base environment.data_dir=/path/to/arctic/data log_frequency=10 print_frequency=10
+```
+
+### Grasp Synthesis
+
+```
+python -m grasp_syn -m grasp_dir=\${environment.data_dir}/HO3D_grasp
+```
+
+### Generation
+
+```
+python -m generate S=3 cat_list=box
+```
+
+### Reconstruction (in progress.....)
+
+```
+python -m train  -m   \
+    expname=recon/\${data.index} \
+    data.index=s05.box_grab_01 \
+    data=arctic
+```
+
+Reconstruction needs additional data to be placed in `data/arctic_clip/<seq-name>`:
+- `text.txt` - Name of object
+- `image/` - Directory containing images of resolution 512x512
+- `hand_mask` - Binary mask of hand
+- `obj_mask` - Binary mask of object
+- `cameras_hoi_smooth_100.npz` - .npz file containing keys `K_pix` (intrinsics as a 4x4 for some reason) and `cTw` (world to camera).
+- `hands_smooth_100.npz` - .npz file containing keys `hA` (mano theta) and `beta` (mano beta) 
 
 
-## FAQ
-- [Notes on coordinate system.](docs/coord.md)
+### Expected directory structure for ARCTIC
 
+```
+arctic/data/
+|-- arctic_data/              # Original dataset from ARCTIC
+|-- arctic_mesh/              # Generated from preprocess/arctic_articulated_meshes.py
+|-- arctic_sdf/               # Generated from preprocess/make_sdf_grid
+|-- body_models/              # Original body models from ARCTIC dataset
+|-- arctic_contact_all.csv    # Generated from ARCTIC repo after applying preprocess/arctic_contact.patch
+|-- arctic_contact_train.csv  # Generated from ARCTIC repo after applying preprocess/arctic_contact.patch
+|-- arctic_contact_val.csv    # Generated from ARCTIC repo after applying preprocess/arctic_contact.patch
+```
+
+- We need to download only the following from ARCTIC:
+
+```
+export SMPLX_USERNAME=""
+export SMPLX_PASSWORD=""
+export MANO_USERNAME=""
+export MANO_PASSWORD=""
+./bash/download_body_models.sh # SMPLX and MANO
+export ARCTIC_USERNAME=""
+export ARCTIC_PASSWORD=""
+./bash/download_misc.sh # raw_seqs/ (MANO and object poses in world coords) and meta/ (object meshes)
+
+python scripts_data/unzip_download.py # unzip downloaded data
+```
 
 ## License and Acknowledgement
-The majority of GHOP is licensed under CC-BY-NC, however portions of the project are available under separate license terms: SDFusion is licensed under the MIT license.
-
-
-This project is built upon this amazing repo.
-We would also thank other great open-source projects:
-- [FrankMocap](https://github.com/facebookresearch/frankmocap/) (for hand pose esitmation)
-- [STCN](https://github.com/hkchengrex/STCN) (for video object segmentation)
-- [SMPL/SMPLX](https://smpl-x.is.tue.mpg.de/), [MANO](https://github.com/hassony2/manopth)
-- [Pytorch3D](https://github.com/facebookresearch/pytorch3d) (for rendering)
-- [pytorch-lightning](https://lightning.ai/) (for framework)
-- [SDFusion](https://yccyenchicheng.github.io/SDFusion/) (for diffusion model architecture to generate SDFs)
-
+BG-HOP builds extensively on G-HOP, we thank the authors for releasing their code!

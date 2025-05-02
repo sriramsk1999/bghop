@@ -13,13 +13,15 @@ class Obj2Text:
 
         self.enable_bimanual = enable_bimanual
         if self.enable_bimanual:
+            self.template = "grasp {} with both hands"
+        else:
             self.template = "an image of a hand grasping a {}"
             self.starting_temp = "an image of a hand grasping"
-        else:
-            self.template = "grasp {} with both hands"
-            self.starting_temp = "grasp"
 
     def __call__(self, text):
+        if self.enable_bimanual:
+            return self.template.format(text)
+
         if isinstance(text, str):
             if len(text) == 0:
                 return ""

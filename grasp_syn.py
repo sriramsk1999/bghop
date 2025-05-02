@@ -44,13 +44,13 @@ class UniGuide:
 
     def init_sds(self, args, device):
         sd = SDLoss(args.load_pt, **args.sd_para)
-        sd.init_model(device)
+        sd.init_model(device, enable_bimanual=self.enable_bimanual)
         self.sd = sd
         lib_name = sd.model.cfg.get("lib", None)
         if lib_name is not None:
             lib_name = osp.join(hydra_utils.get_original_cwd(), f"docs/{lib_name}.json")
         lib_name = lib_name if osp.exists(lib_name) else None
-        self.text_template = Obj2Text(lib_name)
+        self.text_template = Obj2Text(lib_name, enable_bimanual=self.enable_bimanual)
         return sd
 
     def vis_nSdf_hA(self, nSdf, hA, hand_wrapper, save_name, hA_left=None, hand_wrapper_left=None, nTh_left=None):

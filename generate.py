@@ -47,12 +47,12 @@ def sample_hoi(args):
     lib_name = model.cfg.get("lib", None)
     if lib_name is not None:
         lib_name = osp.join(hydra_utils.get_original_cwd(), f"docs/{lib_name}.json")
-    text_template = Obj2Text(lib_name)
+    text_template = Obj2Text(lib_name, enable_bimanual=enable_bimanual)
 
     def do_one(cat):
         S = args.S
         text = text_template(cat)
-        print(f"generate {cat}")
+        print(f"Prompt - {text}")
 
         cat_sem = text.split("grasping a ")[-1].split(",")[0]
         pref = osp.join(save_dir, f"{cat_sem}")
