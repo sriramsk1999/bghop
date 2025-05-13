@@ -501,7 +501,7 @@ def main_function(gpu=None, ngpus_per_node=None, args=None):
         logger.save_stats("stats.p")
 
 
-@main(config_path="configs", config_name="diffhoi3d", version_base=None)
+@main(config_path="configs", config_name="diffhoi3d_bimanual", version_base=None)
 @slurm_utils.slurm_engine()
 def main_cfg(args):
     print(args)

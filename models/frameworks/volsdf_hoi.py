@@ -108,6 +108,7 @@ class VolSDFHoi(nn.Module):
         radiance_cfg=dict(),
         oTh_cfg=dict(),
         hA_cfg=dict(),
+        enable_bimanual=False,
     ):
         super().__init__()
         self.volsdf = VolSDF(
@@ -137,10 +138,15 @@ class VolSDFHoi(nn.Module):
         # TODO
         self.hand_shape = nn.Parameter(torch.zeros(1, 10))
         self.uv_text_init = False
+        self.enable_bimanual = enable_bimanual
 
         # hand articulation
         hA_mode = hA_cfg.pop("mode")
         self.hA_net = get_artnet(hA_mode, hA_cfg)
+        if self.enable_bimanual:
+            self.hand_left_shape = nn.Parameter(torch.zeros(1, 10))
+            self.hA_left_net = get_artnet(hA_mode, hA_cfg)
+            self.h_leftTh = RelPoseNet(data_size, init_pose=None, **oTh_cfg)
 
     @property
     def implicit_surface(self):
@@ -238,13 +244,19 @@ class Trainer(nn.Module):
 
         self.posenet: nn.Module = None
         self.focalnet: nn.Module = None
-        self.hand_wrapper = hand_utils.ManopthWrapper(args.environment.mano_dir)
+
+        self.enable_bimanual = args.enable_bimanual
+        self.flat_hand_mean = args.get("flat_hand_mean", True)
+
+        self.hand_wrapper = hand_utils.ManopthWrapper(args.environment.mano_dir, flat_hand_mean=self.flat_hand_mean)
+        if self.enable_bimanual:
+            self.hand_wrapper_left = hand_utils.ManopthWrapper(args.environment.mano_dir, flat_hand_mean=self.flat_hand_mean, side="left")
 
         if not test_mode:
             self.sd_loss = SDLoss(
                 args.novel_view.diffuse_ckpt, args, **args.novel_view.sd_para
             )
-            self.sd_loss.init_model(self.device)
+            self.sd_loss.init_model(self.device, enable_bimanual=self.enable_bimanual)
 
     def init_camera(self, posenet, focalnet):
         self.posenet = posenet
@@ -1037,6 +1049,7 @@ def get_model(args, data_size=-1, **kwargs):
         "W_geo_feat": args.model.get("W_geometry_feature", 256),
         "speed_factor": args.training.get("speed_factor", 1.0),
         "beta_init": args.training.get("beta_init", 0.1),
+        "enable_bimanual": args.get("enable_bimanual", False),
     }
 
     model_config["data_size"] = data_size

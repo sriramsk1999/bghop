@@ -115,7 +115,7 @@ def run(
     for i in range(time_len):
         jTcp = mesh_utils.get_wTcp_in_camera_view(2 * i * np.pi / time_len, wTc=jTc)
         hoi, _ = mesh_utils.render_hoi_obj_overlay(
-            jHand, jObj, jTcp, H=HH, K_ndc=K_ndc, bin_size=32
+            jHand, jObj, jTcp, H=HH, K_ndc=K_ndc, bin_size=0
         )
         gif_list.append(hoi)
     image_list[6] = gif_list
@@ -166,12 +166,12 @@ def run_video(dataloader, trainer, save_dir, name, H, W,  N=64, volume_size=6, m
         jHand.textures = mesh_utils.pad_texture(jHand, 'blue')
 
         K_ndc = mesh_utils.intr_from_screen_to_ndc(intrinsics, H, W)
-        hoi, _ = mesh_utils.render_hoi_obj_overlay(jHand, jObj, jTc, H=H, K_ndc=K_ndc, bin_size=32)
+        hoi, _ = mesh_utils.render_hoi_obj_overlay(jHand, jObj, jTc, H=H, K_ndc=K_ndc, bin_size=0)
         image_list[1].append(hoi)
 
         # rotate by 90 degree in world frame 
         jTcp = mesh_utils.get_wTcp_in_camera_view(np.pi/2, wTc=jTc)
-        hoi, _ = mesh_utils.render_hoi_obj_overlay(jHand, jObj, jTcp, H=H, K_ndc=K_ndc, bin_size=32)
+        hoi, _ = mesh_utils.render_hoi_obj_overlay(jHand, jObj, jTcp, H=H, K_ndc=K_ndc, bin_size=0)
         image_list[2].append(hoi)
 
         if i == T//2:
@@ -198,7 +198,7 @@ def run_video(dataloader, trainer, save_dir, name, H, W,  N=64, volume_size=6, m
             [0, 0, 1, 0],
             [0, 0, 0, 1]]).to(device)[None].repeat(1, 1, 1)
         vObj = mesh_utils.apply_transform(jObj, vTj)
-        iObj_list = mesh_utils.render_geom_rot(vObj, scale_geom=True, out_size=H, bin_size=32) 
+        iObj_list = mesh_utils.render_geom_rot(vObj, scale_geom=True, out_size=H, bin_size=0)
         image_list[7].append(iObj_list[i%len(iObj_list)])
         
         # HOI from fixed view point 
@@ -207,10 +207,10 @@ def run_video(dataloader, trainer, save_dir, name, H, W,  N=64, volume_size=6, m
         fTj = scale.compose(trans)
         fHand = mesh_utils.apply_transform(jHand, fTj)
         fObj = mesh_utils.apply_transform(jObj, fTj)
-        iHoi, iObj = mesh_utils.render_hoi_obj(fHand, fObj, 0, scale_geom=False, scale=1, bin_size=32)
+        iHoi, iObj = mesh_utils.render_hoi_obj(fHand, fObj, 0, scale_geom=False, scale=1, bin_size=0)
         image_list[8].append(iHoi)
         
-        iHand, iObj = mesh_utils.render_hoi_obj(fHand, None, 0, scale_geom=False, scale=1, bin_size=32)
+        iHand, iObj = mesh_utils.render_hoi_obj(fHand, None, 0, scale_geom=False, scale=1, bin_size=0)
         image_list[9].append(iHand)
     # save 
     for n, im_list in zip(name_list, image_list):

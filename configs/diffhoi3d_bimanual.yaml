@@ -1,0 +1,43 @@
+defaults:
+  - environment: default
+  - data: arctic
+  - camera: delta
+  - oTh: learn
+  - training: diffuse3d
+  - novel_view: 3d_bimanual
+  - model: small
+  - schdl: long
+  - hydra: default
+
+suf: "_smooth_100"
+worker: "train"
+output: ${environment.output}
+expname: dev/tmp
+exp_dir: ${output}/${expname}
+logging: wandb
+
+ngpu: 1
+
+hA:
+  mode: "learn" # gt / learn
+
+ddp: False
+
+# device_ids: [0]     # single gpu           ; run on specified GPU
+# device_ids: [1, 0]  # DP                   ; run on specified GPU
+device_ids: [0] # single GPU / DP / DDP; run on all available GPUs;
+
+pixel_sampler:
+  name: proportion
+  data_init_factor: [0.35, 0.35, 0.3]
+  data_final_factor: [0.1, 0.1, 0.80]
+
+blend_train:
+  method: vol
+  sigma: 1e-4
+  gamma: 1e-4
+  background_color: [1.0, 1.0, 1.0]
+
+seed: 123
+flat_hand_mean: False
+enable_bimanual: True
