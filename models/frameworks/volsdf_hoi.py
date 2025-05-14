@@ -706,6 +706,12 @@ class Trainer(nn.Module):
                 obj_mask * model_input["hand_mask"],
             )
 
+            if self.enable_bimanual:
+                losses["loss_hand_left_mask"] = args.training.w_hand_mask * F.l1_loss(
+                    obj_mask * extras["iHand_left_full"]["mask"].view(N, -1),
+                    obj_mask * model_input["hand_left_mask"],
+                )
+
         losses["loss_mask"] = args.training.w_mask * F.l1_loss(
             iHoi["label"], label_target
         )
@@ -716,6 +722,13 @@ class Trainer(nn.Module):
             x_nn = knn_points(gt_cont, iHand["xy"][..., :2], K=1)
             cham_x = x_nn.dists.mean()
             losses["loss_contour"] = args.training.w_contour * cham_x
+
+            if self.enable_bimanual:
+                iHand_left = extras["iHand_left"]
+                gt_left_cont = model_input["hand_left_contour"].to(device)
+                x_nn = knn_points(gt_left_cont, iHand_left["xy"][..., :2], K=1)
+                cham_x = x_nn.dists.mean()
+                losses["loss_left_contour"] = args.training.w_contour * cham_x
         return losses
 
     def get_reg_loss(self, losses, extras):
@@ -844,6 +857,24 @@ class Trainer(nn.Module):
             losses["loss_dt_joint_i"] = w * iJoints_diff
 
             # cJonits_diff = ((extras['cJoints'] - extras['cJoints_n'])**2).mean()
+
+            if self.enable_bimanual:
+                jJonits_left_diff = ((extras["jJoints_left"] - extras["jJoints_left_n"]) ** 2).mean()
+                w = args.training.get("w_t_hand_j", args.training.w_t_hand)
+                losses["loss_dt_joint_left_j"] = 0.5 * w * (jJonits_left_diff)
+
+                # does not account for translation.
+                centered_joints_left = extras["cJoints_left"] - extras["cJoints_left"][:, 5:6].detach()
+                centered_joints_left_n = (
+                    extras["cJoints_left_n"] - extras["cJoints_left_n"][:, 5:6].detach()
+                )
+                cJoints_left_diff = ((centered_joints_left - centered_joints_left_n) ** 2).mean()
+                w = args.training.get("w_t_hand_c", args.training.w_t_hand)
+                losses["loss_dt_joint_left_c"] = 0.5 * w * (cJoints_left_diff)
+
+                w = args.training.get("w_t_hand_i", 0)
+                iJoints_left_diff = ((extras["iJoints_left"] - extras["iJoints_left_n"]) ** 2).mean()
+                losses["loss_dt_joint_left_i"] = w * iJoints_left_diff
         return losses
 
     def proj3d(self, cPoints, intrinsics):
@@ -1071,6 +1102,16 @@ class Trainer(nn.Module):
         label_target = torch.stack(
             [target_hand, target_obj, torch.zeros_like(target_obj)], -1
         )  # (N, P, 3)
+
+        if self.enable_bimanual:
+            # ignore_obj now includes both right and left hands
+            ignore_obj_left = ((target_hand_left > 0) & ~(target_obj > 0)) & (iObj["depth"] > iHand_left["depth"])
+            ignore_obj = ignore_obj | ignore_obj_left  # Combine for object ignores
+
+            ignore_left_hand = (~(target_hand_left > 0) & (target_obj > 0)) & (iObj["depth"] < iHand_left["depth"])  # Left hand
+            label_target = torch.stack(
+                [target_hand, target_obj, target_hand_left, torch.zeros_like(target_obj)], -1  # (N, P, 4)
+            )
         extras["label_target"] = label_target
 
         # [B, N_rays, N_pts, 3]
@@ -1134,9 +1175,12 @@ class Trainer(nn.Module):
 
         extras["obj_ignore"] = ignore_obj
         extras["hand_ignore"] = ignore_hand
+        if self.enable_bimanual:
+            extras["left_hand_ignore"] = ignore_left_hand
 
         extras["obj_mask_target"] = model_input["obj_mask"]
         extras["hand_mask_target"] = model_input["hand_mask"]
+        extras["hand_left_mask_target"] = model_input["hand_left_mask"]
         extras["mask_target"] = model_input["object_mask"]
         # extras['flow'] = iHoi['flow']
         extras["intrinsics"] = intrinsics
