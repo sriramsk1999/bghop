@@ -145,7 +145,9 @@ class VolSDFHoi(nn.Module):
         self.hA_net = get_artnet(hA_mode, hA_cfg)
         if self.enable_bimanual:
             self.hand_left_shape = nn.Parameter(torch.zeros(1, 10))
-            self.hA_left_net = get_artnet(hA_mode, hA_cfg)
+            hA_left_cfg = hA_cfg.copy()
+            hA_left_cfg["key"] = "hA_left"
+            self.hA_left_net = get_artnet(hA_mode, hA_left_cfg)
             self.h_leftTh = RelPoseNet(data_size, init_pose=None, **oTh_cfg)
 
     @property
@@ -387,10 +389,19 @@ class Trainer(nn.Module):
 
         jTh = onTo @ oTh
         jTh_n = onTo_n @ oTh_n
+        if self.enable_bimanual:
+            oTh_left = self.model.h_leftTh(indices.to(device), model_input, ground_truth)
+            oTh_left_n = self.model.h_leftTh(
+                model_input["inds_n"].to(device), model_input, ground_truth
+            )
+            jTh_left = onTo @ oTh_left
+            jTh_left_n = onTo_n @ oTh_left_n
+        else:
+            jTh_left, jTh_left_n = None, None
         jTc = onTo @ oTc  # wTc
         jTc_n = onTo @ oTc_n  # wTc_n
 
-        return jTc, jTc_n, jTh, jTh_n
+        return jTc, jTc_n, jTh, jTh_n, jTh_left, jTh_left_n
 
     def blend(
         self,
@@ -399,6 +410,7 @@ class Trainer(nn.Module):
         select_inds,
         znear,
         zfar,
+        iHand_left=None,
         method="hard",
         sigma=1e-4,
         gamma=1e-4,
@@ -420,55 +432,251 @@ class Trainer(nn.Module):
         iHand["depth"] = torch.gather(iHand["depth"], 1, select_inds).float()
         iHand["mask"] = torch.gather(iHand["mask"], 1, select_inds).float()
 
+        if iHand_left is not None:
+            iHand_left["rgb"] = rearrange(iHand_left["image"], "n c h w -> n (h w) c")
+            iHand_left["normal"] = rearrange(iHand_left["normal"], "n c h w -> n (h w) c")
+            iHand_left["depth"] = iHand_left["depth"].view(N, -1)
+            iHand_left["mask"] = iHand_left["mask"].view(N, -1)
+
+            iHand_left["rgb"] = torch.gather(iHand_left["rgb"], 1, torch.stack(3 * [select_inds], -1))
+            iHand_left["normal"] = torch.gather(
+                iHand_left["normal"], 1, torch.stack(3 * [select_inds], -1)
+            )
+            iHand_left["depth"] = torch.gather(iHand_left["depth"], 1, select_inds).float()
+            iHand_left["mask"] = torch.gather(iHand_left["mask"], 1, select_inds).float()
+
         blend_params = BlendParams(sigma, gamma, background_color)
         blend_label = BlendParams(sigma, gamma, (0.0, 0.0, 0.0))
         iHoi = {}
+
+        if iHand_left is not None:
+            num_classes = 4  # Right hand, object, left hand, background
+            right_hand_label = torch.zeros_like(iHand['mask']).long()
+            obj_label = torch.ones_like(iObj['mask']).long()
+            left_hand_label = 2 * torch.ones_like(iHand_left['mask']).long()
+        else:
+            num_classes = 3  # Original: hand, object, background
+            right_hand_label = torch.zeros_like(iHand['mask']).long()
+            obj_label = torch.ones_like(iObj['mask']).long()
+
         if method == 'vol':
-            hand_label = F.one_hot(torch.zeros_like(iHand['mask']).long(), num_classes=3).float()
-            obj_label = F.one_hot(torch.ones_like(iObj['mask']).long(), num_classes=3).float()
-            iHoi['label'] = volumetric_rgb_blend(
-                (hand_label, obj_label),
-                (iHand['depth'], iObj['depth']),
-                (iHand['mask'], iObj['mask']),
-                blend_label, znear, zfar)[..., 0:3]
-            iHoi['depth'] = torch.minimum(iHand['depth'], iObj['depth'])
-            # TODO: check pytorch3d normal!!!???
-            iHoi['normal'] = volumetric_rgb_blend(
-                (iHand['normal'], iObj['normal_c']),
-                (iHand['depth'], iObj['depth']),
-                (iHand['mask'], iObj['mask']),
-                blend_label, znear, zfar)[..., 0:3]  
+            if iHand_left is None:
+                # Original three-class blending (hand, object, background)
+                right_hand_oh = F.one_hot(right_hand_label, num_classes=num_classes).float()
+                obj_oh = F.one_hot(obj_label, num_classes=num_classes).float()
 
-            rgba = volumetric_rgb_blend(
-                (iHand['rgb'], iObj['rgb']),
-                (iHand['depth'], iObj['depth']),
-                (iHand['mask'], iObj['mask']),
-                blend_params, znear, zfar)
-            iHoi['rgb'], iHoi['mask'] = rgba.split([3, 1], -1)
-            iHoi['mask'] = iHoi['mask'].squeeze(-1)
+                # Label blend
+                iHoi['label'] = volumetric_rgb_blend(
+                    (right_hand_oh, obj_oh),
+                    (iHand['depth'], iObj['depth']),
+                    (iHand['mask'], iObj['mask']),
+                    blend_label, znear, zfar)[..., 0:num_classes]
+
+                # Depth
+                iHoi['depth'] = torch.minimum(iHand['depth'], iObj['depth'])
+
+                # Normal blend
+                iHoi['normal'] = volumetric_rgb_blend(
+                    (iHand['normal'], iObj['normal_c']),
+                    (iHand['depth'], iObj['depth']),
+                    (iHand['mask'], iObj['mask']),
+                    blend_label, znear, zfar)[..., 0:3]
+
+                # RGB blend
+                rgba = volumetric_rgb_blend(
+                    (iHand['rgb'], iObj['rgb']),
+                    (iHand['depth'], iObj['depth']),
+                    (iHand['mask'], iObj['mask']),
+                    blend_params, znear, zfar)
+
+                iHoi['rgb'], iHoi['mask'] = rgba.split([3, 1], -1)
+                iHoi['mask'] = iHoi['mask'].squeeze(-1)
+
+            else:
+                # Hierarchical blending (four classes)
+                # Step 1: Blend right hand and object
+                right_hand_oh = F.one_hot(right_hand_label, num_classes=num_classes).float()
+                obj_oh = F.one_hot(obj_label, num_classes=num_classes).float()
+
+                # Blend right hand and object
+                rgba_right_obj = volumetric_rgb_blend(
+                    (iHand['rgb'], iObj['rgb']),
+                    (iHand['depth'], iObj['depth']),
+                    (iHand['mask'], iObj['mask']),
+                    blend_params, znear, zfar)
+
+                right_obj_rgb, right_obj_mask = rgba_right_obj.split([3, 1], -1)
+                right_obj_mask = right_obj_mask.squeeze(-1)
+
+                # Compute intermediate depth
+                right_obj_depth = torch.minimum(
+                    iHand['depth'] * iHand['mask'],
+                    iObj['depth'] * iObj['mask']
+                )
+                right_obj_depth = right_obj_depth / (iHand['mask'] + iObj['mask'] + 1e-10)
+
+                # Intermediate labels - still use 3 classes internally for this step
+                # We'll expand to 4 classes in the next step
+                temp_num_classes = 3  # Right hand, object, background for intermediate blend
+                right_hand_oh_temp = F.one_hot(right_hand_label, num_classes=temp_num_classes).float()
+                obj_oh_temp = F.one_hot(obj_label, num_classes=temp_num_classes).float()
+
+                label_right_obj = volumetric_rgb_blend(
+                    (right_hand_oh_temp, obj_oh_temp),
+                    (iHand['depth'], iObj['depth']),
+                    (iHand['mask'], iObj['mask']),
+                    blend_label, znear, zfar)[..., 0:temp_num_classes]
+
+                # Intermediate normal
+                normal_right_obj = volumetric_rgb_blend(
+                    (iHand['normal'], iObj['normal_c']),
+                    (iHand['depth'], iObj['depth']),
+                    (iHand['mask'], iObj['mask']),
+                    blend_label, znear, zfar)[..., 0:3]
+
+                # Step 2: Expand intermediate labels to 4 classes
+                # We need to map: 0->0 (right hand), 1->1 (object), 2->3 (background)
+                # And leave space for 2 (left hand)
+                expanded_label = torch.zeros((N, label_right_obj.shape[1], num_classes),
+                                            device=label_right_obj.device)
+                expanded_label[..., 0] = label_right_obj[..., 0]  # Right hand stays at 0
+                expanded_label[..., 1] = label_right_obj[..., 1]  # Object stays at 1
+                expanded_label[..., 3] = label_right_obj[..., 2]  # Background moves from 2 to 3
+
+                # Step 3: Blend result with left hand
+                left_hand_oh = F.one_hot(left_hand_label, num_classes=num_classes).float()
+
+                # Final RGB blend
+                rgba_final = volumetric_rgb_blend(
+                    (iHand_left['rgb'], right_obj_rgb),
+                    (iHand_left['depth'], right_obj_depth),
+                    (iHand_left['mask'], right_obj_mask),
+                    blend_params, znear, zfar)
+
+                iHoi['rgb'], iHoi['mask'] = rgba_final.split([3, 1], -1)
+                iHoi['mask'] = iHoi['mask'].squeeze(-1)
+
+                # Final label blend
+                iHoi['label'] = volumetric_rgb_blend(
+                    (left_hand_oh, expanded_label),
+                    (iHand_left['depth'], right_obj_depth),
+                    (iHand_left['mask'], right_obj_mask),
+                    blend_label, znear, zfar)[..., 0:num_classes]
+
+                # Final normal blend
+                iHoi['normal'] = volumetric_rgb_blend(
+                    (iHand_left['normal'], normal_right_obj),
+                    (iHand_left['depth'], right_obj_depth),
+                    (iHand_left['mask'], right_obj_mask),
+                    blend_label, znear, zfar)[..., 0:3]
+
+                # Final depth
+                iHoi['depth'] = torch.minimum(iHand_left['depth'], right_obj_depth)
+
         elif method == "hard":
-            rgba = hard_rgb_blend(
-                (iHand["rgb"], iObj["rgb"]),
-                (iHand["depth"], iObj["depth"]),
-                (iHand["mask"], iObj["mask"]),
-                blend_params,
-            )
-            iHoi["rgb"], iHoi["mask"] = rgba.split([3, 1], -1)
-            iHoi["mask"] = iHoi["mask"].squeeze(-1)
+            if iHand_left is None:
+                # Original three-class blending
+                right_hand_oh = F.one_hot(right_hand_label, num_classes=num_classes).float()
+                obj_oh = F.one_hot(obj_label, num_classes=num_classes).float()
 
-            hand_label = torch.zeros_like(iHand["mask"]).long()
-            obj_label = torch.ones_like(iHand["mask"]).long()
-            iHoi["label"] = hard_rgb_blend(
-                (
-                    F.one_hot(hand_label, num_classes=3),
-                    F.one_hot(obj_label, num_classes=3),
-                ),
-                (iHand["depth"], iObj["depth"]),
-                (iHand["mask"], iObj["mask"]),
-                blend_label,
-            )[..., 0:3]
+                # RGB blend
+                rgba = hard_rgb_blend(
+                    (iHand["rgb"], iObj["rgb"]),
+                    (iHand["depth"], iObj["depth"]),
+                    (iHand["mask"], iObj["mask"]),
+                    blend_params,
+                )
+
+                iHoi["rgb"], iHoi["mask"] = rgba.split([3, 1], -1)
+                iHoi["mask"] = iHoi["mask"].squeeze(-1)
+
+                # Label blend
+                iHoi["label"] = hard_rgb_blend(
+                    (right_hand_oh, obj_oh),
+                    (iHand["depth"], iObj["depth"]),
+                    (iHand["mask"], iObj["mask"]),
+                    blend_label,
+                )[..., 0:num_classes]
+
+                # Depth is minimum of depths
+                iHoi["depth"] = torch.minimum(iHand["depth"], iObj["depth"])
+
+            else:
+                # Hierarchical blending (four classes)
+                # Step 1: Blend right hand and object with 3 classes
+                temp_num_classes = 3  # Right hand, object, background for intermediate blend
+                right_hand_oh_temp = F.one_hot(right_hand_label, num_classes=temp_num_classes).float()
+                obj_oh_temp = F.one_hot(obj_label, num_classes=temp_num_classes).float()
+
+                # Blend right hand and object
+                rgba_right_obj = hard_rgb_blend(
+                    (iHand["rgb"], iObj["rgb"]),
+                    (iHand["depth"], iObj["depth"]),
+                    (iHand["mask"], iObj["mask"]),
+                    blend_params,
+                )
+
+                right_obj_rgb, right_obj_mask = rgba_right_obj.split([3, 1], -1)
+                right_obj_mask = right_obj_mask.squeeze(-1)
+
+                # Compute intermediate depth based on hard blending rules
+                right_obj_depth = torch.where(
+                    (iHand["depth"] < iObj["depth"]) & (iHand["mask"] > 0),
+                    iHand["depth"],
+                    iObj["depth"]
+                )
+
+                # For regions where neither is visible, set to far depth
+                right_obj_depth = torch.where(
+                    (iHand["mask"] + iObj["mask"]) > 0,
+                    right_obj_depth,
+                    torch.full_like(right_obj_depth, zfar)
+                )
+
+                # Intermediate labels
+                label_right_obj = hard_rgb_blend(
+                    (right_hand_oh_temp, obj_oh_temp),
+                    (iHand["depth"], iObj["depth"]),
+                    (iHand["mask"], iObj["mask"]),
+                    blend_label,
+                )[..., 0:temp_num_classes]
+
+                # Step 2: Expand intermediate labels to 4 classes
+                # Remap: 0->0 (right hand), 1->1 (object), 2->3 (background)
+                expanded_label = torch.zeros((N, label_right_obj.shape[1], num_classes),
+                                            device=label_right_obj.device)
+                expanded_label[..., 0] = label_right_obj[..., 0]  # Right hand stays at 0
+                expanded_label[..., 1] = label_right_obj[..., 1]  # Object stays at 1
+                expanded_label[..., 3] = label_right_obj[..., 2]  # Background moves from 2 to 3
+
+                # Step 3: Blend with left hand
+                left_hand_oh = F.one_hot(left_hand_label, num_classes=num_classes).float()
+
+                # Final RGB blend
+                rgba_final = hard_rgb_blend(
+                    (iHand_left["rgb"], right_obj_rgb),
+                    (iHand_left["depth"], right_obj_depth),
+                    (iHand_left["mask"], right_obj_mask),
+                    blend_params,
+                )
+
+                iHoi['rgb'], iHoi['mask'] = rgba_final.split([3, 1], -1)
+                iHoi['mask'] = iHoi['mask'].squeeze(-1)
+
+                # Final label blend
+                iHoi['label'] = hard_rgb_blend(
+                    (left_hand_oh, expanded_label),
+                    (iHand_left["depth"], right_obj_depth),
+                    (iHand_left["mask"], right_obj_mask),
+                    blend_label,
+                )[..., 0:num_classes]
+
+                # Final depth
+                iHoi['depth'] = torch.minimum(iHand_left["depth"], right_obj_depth)
+
         else:
             raise NotImplementedError("blend method %s" % method)
+
         return iHoi
 
     def get_reproj_loss(
@@ -675,7 +883,7 @@ class Trainer(nn.Module):
             and it >= self.args.training.warmup
         )
 
-        jTc, jTc_n, jTh, jTh_n = self.get_jTc(indices, model_input, ground_truth)
+        jTc, jTc_n, jTh, jTh_n, jTh_left, jTh_left_n = self.get_jTc(indices, model_input, ground_truth)
 
         # NOTE: znear and zfar is important: distance of camera center to world origin
         cam_norm = jTc[..., 0:4, 3]
@@ -779,9 +987,52 @@ class Trainer(nn.Module):
         extras["iHand"] = iHand
         extras["hA"] = hA
 
+        # 2.2.2 RENDER (left) HAND
+        # hand FK
+        iHand_left = None
+        if self.enable_bimanual:
+            hA_left = self.model.hA_left_net(indices, model_input, None)
+            hA_left_n = self.model.hA_left_net(model_input["inds_n"].to(device), model_input, None)
+            hHand_left, hJoints_left = self.hand_wrapper_left(
+                None, hA_left, texture=self.model.uv_text, th_betas=self.model.hand_left_shape
+            )
+            jHand_left = mesh_utils.apply_transform(hHand_left, jTh_left)
+            jJoints_left = mesh_utils.apply_transform(hJoints_left, jTh_left)
+            cJoints_left = mesh_utils.apply_transform(
+                jJoints_left, geom_utils.inverse_rt(mat=jTc, return_mat=True)
+            )
+            extras["jTh_left"] = jTh
+            extras["hand_left"] = jHand
+            extras["jJoints_left"] = jJoints_left
+            extras["iJoints_left"] = self.proj3d(cJoints_left, intrinsics)
+            extras["cJoints_left"] = cJoints_left
+
+            hHand_left_n, hJoints_left_n = self.hand_wrapper_left(
+                None, hA_left_n, texture=self.model.uv_text, th_betas=self.model.hand_left_shape
+            )
+            jJoints_left_n = mesh_utils.apply_transform(hJoints_left_n, jTh_left_n)
+            cJoints_left_n = mesh_utils.apply_transform(
+                jJoints_left_n, geom_utils.inverse_rt(mat=jTc_n, return_mat=True)
+            )
+            extras["jJoints_left_n"] = jJoints_left_n
+            extras["iJoints_left_n"] = self.proj3d(cJoints_left_n, intrinsics_n)
+            extras["cJoints_left_n"] = cJoints_left_n
+
+            iHand_left = self.mesh_renderer(
+                geom_utils.inverse_rt(mat=jTc, return_mat=True),
+                intrinsics,
+                jHand_left,
+                **render_kwargs_train,
+            )
+            extras["iHand_left_full"] = {}
+            for k, v in iHand_left.items():
+                extras["iHand_left_full"][k] = v
+            extras["iHand_left"] = iHand_left
+            extras["hA_left"] = hA_left
+
         # 2.3 BLEND!!!
         # blended rgb, detph, mask, flow
-        iHoi = self.blend(iHand, iObj, select_inds, znear, zfar, **args.blend_train)
+        iHoi = self.blend(iHand, iObj, select_inds, znear, zfar, iHand_left, **args.blend_train)
         extras["iHoi"] = iHoi
 
         # 3. GET GROUND TRUTH SUPERVISION
@@ -800,10 +1051,14 @@ class Trainer(nn.Module):
         target_hand = torch.gather(
             model_input["hand_mask"].to(device), 1, select_inds
         ).float()
+        target_hand_left = torch.gather(
+            model_input["hand_left_mask"].to(device), 1, select_inds
+        ).float()
         extras["target_rgb"] = target_rgb
         extras["target_mask"] = target_mask
         extras["target_obj"] = target_obj
         extras["target_hand"] = target_hand
+        extras["target_hand_left"] = target_hand_left
 
         # masks for mask loss: # (N, P, 2)
         # GT is marked as hand not object, AND predicted object depth is behind

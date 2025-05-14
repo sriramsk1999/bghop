@@ -7,6 +7,7 @@ def get_data(args, return_val=False, val_downscale=4.0, **overwrite_cfgs):
         "train_cameras": False,
         'len_data': args.data.len,
         'suf': args.suf,
+        'enable_bimanual': args.enable_bimanual,
     }
 
     if dataset_type == "HOI":

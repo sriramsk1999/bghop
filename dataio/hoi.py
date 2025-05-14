@@ -25,8 +25,10 @@ class SceneDataset(torch.utils.data.Dataset):
                  downscale=1.,   # [H, W]
                  len_data=1000,
                  suf='',
+                 enable_bimanual=False,
                  args=dict(), **kwargs):
 
+        self.enable_bimanual = enable_bimanual
         assert os.path.exists(data_dir), "Data directory is empty %s" % data_dir
         if osp.exists(osp.join(data_dir, 'oObj.obj')):
             self.oObj = mesh_utils.load_mesh(osp.join(data_dir, 'oObj.obj'))
@@ -122,6 +124,21 @@ class SceneDataset(torch.utils.data.Dataset):
             object_mask = object_mask.reshape(-1)
             self.hand_masks.append(torch.from_numpy(object_mask).to(dtype=torch.bool))
 
+        if self.enable_bimanual:
+            self.hA_left = torch.from_numpy(hands['hA_left']).float().squeeze(1)
+            self.beta_left = torch.from_numpy(hands['beta_left']).float().squeeze(1)
+            self.hA_left_inp = self.hA_left
+            image_dir = '{0}/hand_left_mask'.format(self.instance_dir)
+            hand_left_paths = sorted(glob_imgs(image_dir))
+            self.hand_left_masks = []
+            self.hand_left_contours = []
+            for path in hand_left_paths:
+                object_mask = load_mask(path, downscale)
+                hand_c = image_utils.sample_contour(object_mask > 0).astype(np.float32) / object_mask.shape[0] * 2 - 1
+                self.hand_left_contours.append(hand_c)
+                object_mask = object_mask.reshape(-1)
+                self.hand_left_masks.append(torch.from_numpy(object_mask).to(dtype=torch.bool))
+
         if len(self.object_masks) == 0:
             for obj_mask, hand_mask in zip(self.obj_masks, self.hand_masks):
                 self.object_masks.append(torch.logical_or(obj_mask, hand_mask))
@@ -200,6 +217,16 @@ class SceneDataset(torch.utils.data.Dataset):
 
         ground_truth['hA'] = self.hA[idx]
         sample['text'] = self.text
+
+        if self.enable_bimanual:
+            sample['hand_left_mask'] = self.hand_left_masks[idx]
+            sample['hand_left_contour'] = self.hand_left_contours[idx]
+
+            sample['hA_left'] = self.hA_left_inp[idx]
+            sample['hA_left_n'] = self.hA_left_inp[idx_n]
+            sample['th_betas_left'] = self.beta_left
+
+            ground_truth['hA_left'] = self.hA_left[idx]
 
         idx_n = idx + 1
         sample['inds_n'] = idx_n
