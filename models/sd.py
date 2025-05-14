@@ -252,7 +252,7 @@ class SDLoss:
         if "hand" in start_pred_dict:
             extras["hand_pred"] = hand_pred
         if "hand_left" in start_pred_dict:
-            extras["hand_pred"] = hand_pred_left
+            extras["hand_pred_left"] = hand_pred_left
         return grad, batch["image"], extras
 
     def apply_sd(

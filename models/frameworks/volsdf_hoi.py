@@ -769,6 +769,10 @@ class Trainer(nn.Module):
         B = len(hA)
         device = hA.device
 
+        if self.enable_bimanual:
+            hA_left = extras["hA_left"]
+            jTh_left = extras["jTh_left"]
+
         nXyz = mesh_utils.create_sdf_grid(
             B, int(up_factor * reso), lim, "zyx", device=device
         )  # (B, H, H, H, 3) in range of (-1, 1)
@@ -799,10 +803,15 @@ class Trainer(nn.Module):
             nXyz = F.adaptive_avg_pool3d(nXyz, reso)
             nXyz = nXyz.permute([0, 2, 3, 4, 1])
 
-        rtn = self.sd_loss.model.set_inputs(
-            {"nSdf": nSdf, "hA": hA, "nXyz": nXyz}, 0, soft=soft
-        )
+        inputs = {"nSdf": nSdf, "hA": hA, "nXyz": nXyz}
+        if self.enable_bimanual:
+            inputs["hA_left"] = hA_left
+            inputs["jTh_left"] = jTh_left
+        rtn = self.sd_loss.model.set_inputs(inputs, 0, soft=soft)
         rtn["hA"] = hA
+        if self.enable_bimanual:
+            rtn["hA_left"] = hA_left
+            rtn["nTh_left"] = jTh_left[None]
         rtn["offset"] = offset
         rtn["raw"] = nSdf
 
@@ -1235,11 +1244,18 @@ class Trainer(nn.Module):
         jObj_gt = self.sd_loss.model.decode_samples(
             {"image": sd_rtn["start_pred"]}, offset
         )["jObj"]
+
         if "hand_pred" in sd_rtn:
             hA, _, _, _ = self.sd_loss.model.hand_cond.grid2pose_sgd(sd_rtn["hand_pred"])
             jHand, _ = self.hand_wrapper(nTh, hA)
             jHand.textures = mesh_utils.pad_texture(jHand, "blue")
         jHoi_gt = mesh_utils.join_scene([jHand, jObj_gt])
+        if self.enable_bimanual:
+            hA_left, _, _, _ = self.sd_loss.model.hand_cond_left.grid2pose_sgd(sd_rtn["hand_pred_left"])
+            jHand_left, _ = self.hand_wrapper_left(rtn["nTh_left"][0], hA_left)
+            jHand_left.textures = mesh_utils.pad_texture(jHand_left, "blue")
+            jHoi_gt = mesh_utils.join_scene([jHoi_gt, jHand_left])
+
         image_list = mesh_utils.render_geom_rot(jHoi_gt, scale_geom=True)
         logger.add_gifs(image_list, "vol/jHoi_gt", it)
 
@@ -1276,6 +1292,11 @@ class Trainer(nn.Module):
             osp.join(logger.log_dir, "hand_meshes/%08d" % it), ret["hand"]
         )
         logger.add_meshes("hand", osp.join("hand_meshes/%08d_00.obj" % it), it)
+        if self.enable_bimanual:
+            mesh_utils.dump_meshes(
+                osp.join(logger.log_dir, "hand_left_meshes/%08d" % it), ret["hand_left"]
+            )
+            logger.add_meshes("hand_left", osp.join("hand_left_meshes/%08d_00.obj" % it), it)
 
         # 3D
         if self.args.novel_view.mode == "3d":
@@ -1283,32 +1304,54 @@ class Trainer(nn.Module):
                 logger, ret, to_img_fn, it, render_kwargs_test, val_ind, val_in, val_gt
             )
 
+        num_classes = 4 if self.enable_bimanual else 3
         # vis reproje
         mask = torch.cat(
             [
                 to_img_fn(ret["hand_mask_target"].unsqueeze(-1).float())
-                .repeat(1, 3, 1, 1)
+                .repeat(1, num_classes, 1, 1)
                 .cpu(),
                 to_img_fn(ret["obj_mask_target"].unsqueeze(-1))
-                .repeat(1, 3, 1, 1)
+                .repeat(1, num_classes, 1, 1)
                 .cpu(),
-                to_img_fn(ret["mask_target"].unsqueeze(-1)).repeat(1, 3, 1, 1).cpu(),
+                to_img_fn(ret["mask_target"].unsqueeze(-1)).repeat(1, num_classes, 1, 1).cpu(),
                 to_img_fn(ret["label_target"].cpu()),
             ],
             -1,
         )
+        if self.enable_bimanual:
+            mask = torch.cat(
+                [
+                    to_img_fn(ret["hand_left_mask_target"].unsqueeze(-1).float())
+                    .repeat(1, num_classes, 1, 1)
+                    .cpu(),
+                    mask,
+                ],
+                -1
+            )
 
         logger.add_imgs(mask, "gt/hoi_mask_gt", it)
 
         mask = torch.cat(
             [
-                to_img_fn(ret["iHand"]["mask"].unsqueeze(-1)).repeat(1, 3, 1, 1).cpu(),
-                to_img_fn(ret["iObj"]["mask"].unsqueeze(-1)).repeat(1, 3, 1, 1).cpu(),
-                to_img_fn(ret["iHoi"]["mask"].unsqueeze(-1)).repeat(1, 3, 1, 1).cpu(),
+                to_img_fn(ret["iHand"]["mask"].unsqueeze(-1)).repeat(1, num_classes, 1, 1).cpu(),
+                to_img_fn(ret["iObj"]["mask"].unsqueeze(-1)).repeat(1, num_classes, 1, 1).cpu(),
+                to_img_fn(ret["iHoi"]["mask"].unsqueeze(-1)).repeat(1, num_classes, 1, 1).cpu(),
                 to_img_fn(ret["iHoi"]["label"]).cpu(),
             ],
             -1,
         )
+        if self.enable_bimanual:
+            mask = torch.cat(
+                [
+                    to_img_fn(ret["iHand_left"]["mask"].unsqueeze(-1))
+                    .repeat(1, num_classes, 1, 1)
+                    .cpu(),
+                    mask,
+                ],
+                -1
+            )
+
         logger.add_imgs(mask, "hoi/hoi_mask_pred", it)
 
 
