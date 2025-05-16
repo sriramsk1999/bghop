@@ -149,8 +149,8 @@ def get_sdf_grid(mesh_file, N=64, fit_to_unit_cube=False, **kwargs):
 
 
 def get_hoi4d():
-    inp_dir = "/data/sriram/hoi4d/HOI4D_CAD_Model_for_release/rigid"
-    med_dir = "/data/sriram/hoi4d/mesh_sdf/manifold/hoi4d/all_2k/"
+    inp_dir = "/data/<>/hoi4d/HOI4D_CAD_Model_for_release/rigid"
+    med_dir = "/data/<>/hoi4d/mesh_sdf/manifold/hoi4d/all_2k/"
     save_dir = "mesh_sdf/SdfGrids/hoi4d/all_2k/"
     inp_list = glob(osp.join(inp_dir, "*/*.obj"))[:10]
     out_list = [Path(inp_file[:-4]).relative_to(inp_dir) for inp_file in inp_list]
@@ -162,7 +162,7 @@ def get_hoi4d():
     return inp_list, out_list, None
 
 def get_arctic_overfit():
-    ROOT_DIR = "/data/sriram/arctic/"
+    ROOT_DIR = "/data/<>/arctic/"
     save_dir = "data/arctic_proc"
     os.makedirs(save_dir, exist_ok=True)
 
@@ -184,8 +184,8 @@ def get_arctic_overfit():
     return inp_list, out_list, None
 
 def get_arctic():
-    root_dir = "/data/sriram/arctic/data/arctic_mesh"
-    save_dir = "/data/sriram/arctic/data/arctic_sdf"
+    root_dir = "/data/<>/arctic/data/arctic_mesh"
+    save_dir = "/data/<>/arctic/data/arctic_sdf"
     os.makedirs(save_dir, exist_ok=True)
 
     inp_list = glob(f"{root_dir}/*obj")

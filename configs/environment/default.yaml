@@ -3,4 +3,4 @@ data_dir: ${environment.remote_str}/data/
 output: ${environment.remote_str}/output
 mano_dir: third_party/mano_v1_2/models/
 wandb:
-  user: sriramsk1999
+  user:

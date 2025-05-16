@@ -3,7 +3,7 @@
 ## Installation 
 
 - Follow the installation steps in [ghop.md](ghop.md).
-- Download pretrained checkpoints from [huggingface.co/sriramsk/bghop](https://huggingface.co/sriramsk/bghop) and place them in `output/`.
+- Download pretrained checkpoints from [huggingface.co/REMOVED FOR ANONYMITY/bghop](https://huggingface.co/REMOVED FOR ANONYMITY/bghop) and place them in `output/`.
 
 ### Sample HOI Generations
 
