@@ -865,7 +865,7 @@ def get_optimizer(args, model, posenet, focalnet):
     oTh = []
 
     for name, param in model.named_parameters():
-        if 'oTh' in name:
+        if 'oTh' in name or 'h_leftTh' in name:
             print('another param', name)
             oTh.append(param)
         elif 'uv_text' in name:

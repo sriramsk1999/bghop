@@ -70,6 +70,7 @@ class SceneDataset(torch.utils.data.Dataset):
         scale = idty.clone()
         scale[:, 0, 0] = scale[:, 1, 1] = scale[:, 2, 2] = 10
         self.onTo = camera_dict.get('onTo', scale)
+        self.onTh = camera_dict.get('onTo', scale)
         self.intrinsics_all = torch.from_numpy(camera_dict['K_pix']).float()  # (N, 4, 4)
         # downscale * self.H is the orignal height before resize. 
         self.intrinsics_all = mesh_utils.intr_from_screen_to_ndc(
@@ -219,6 +220,9 @@ class SceneDataset(torch.utils.data.Dataset):
         sample['text'] = self.text
 
         if self.enable_bimanual:
+            sample['onTh'] = self.onTh[idx]
+            sample['onTh_n'] = self.onTh[idx_n]
+
             sample['hand_left_mask'] = self.hand_left_masks[idx]
             sample['hand_left_contour'] = self.hand_left_contours[idx]
 

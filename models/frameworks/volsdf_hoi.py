@@ -265,7 +265,7 @@ class Trainer(nn.Module):
         self.focalnet = focalnet
 
     def get_jHand_camera(self, indices, model_input, ground_truth, H, W):
-        jTc, jTc_n, jTh, jTh_n = self.get_jTc(indices, model_input, ground_truth)
+        jTc, jTc_n, jTh, jTh_n, jTh_left, jTh_left_n, nTh_left = self.get_jTc(indices, model_input, ground_truth)
         intrinsics = self.focalnet(indices, model_input, ground_truth, H=H, W=W)
 
         hA = self.model.hA_net(indices, model_input, None)
@@ -390,18 +390,24 @@ class Trainer(nn.Module):
         jTh = onTo @ oTh
         jTh_n = onTo_n @ oTh_n
         if self.enable_bimanual:
-            oTh_left = self.model.h_leftTh(indices.to(device), model_input, ground_truth)
-            oTh_left_n = self.model.h_leftTh(
+            onTh = model_input["onTh"].to(device)  # scale: 10
+            onTh_n = model_input["onTh_n"].to(device)
+
+            hTh_left = self.model.h_leftTh(indices.to(device), model_input, ground_truth)
+            hTh_left_n = self.model.h_leftTh(
                 model_input["inds_n"].to(device), model_input, ground_truth
             )
-            jTh_left = onTo @ oTh_left
-            jTh_left_n = onTo_n @ oTh_left_n
+            jTh_left = onTh @ hTh_left
+            jTh_left_n = onTh_n @ hTh_left_n
+
+            nTh = hand_utils.get_nTh(hand_wrapper=self.hand_wrapper, hA=model_input["hA"].to(jTh_left.device))
+            nTh_left = nTh @ hTh_left
         else:
             jTh_left, jTh_left_n = None, None
         jTc = onTo @ oTc  # wTc
         jTc_n = onTo @ oTc_n  # wTc_n
 
-        return jTc, jTc_n, jTh, jTh_n, jTh_left, jTh_left_n
+        return jTc, jTc_n, jTh, jTh_n, jTh_left, jTh_left_n, nTh_left
 
     def blend(
         self,
@@ -771,7 +777,7 @@ class Trainer(nn.Module):
 
         if self.enable_bimanual:
             hA_left = extras["hA_left"]
-            jTh_left = extras["jTh_left"]
+            nTh_left = extras["nTh_left"]
 
         nXyz = mesh_utils.create_sdf_grid(
             B, int(up_factor * reso), lim, "zyx", device=device
@@ -806,12 +812,12 @@ class Trainer(nn.Module):
         inputs = {"nSdf": nSdf, "hA": hA, "nXyz": nXyz}
         if self.enable_bimanual:
             inputs["hA_left"] = hA_left
-            inputs["jTh_left"] = jTh_left
+            inputs["nTh_left"] = nTh_left
         rtn = self.sd_loss.model.set_inputs(inputs, 0, soft=soft)
         rtn["hA"] = hA
         if self.enable_bimanual:
             rtn["hA_left"] = hA_left
-            rtn["nTh_left"] = jTh_left[None]
+            rtn["nTh_left"] = nTh_left[None]
         rtn["offset"] = offset
         rtn["raw"] = nSdf
 
@@ -923,7 +929,7 @@ class Trainer(nn.Module):
             and it >= self.args.training.warmup
         )
 
-        jTc, jTc_n, jTh, jTh_n, jTh_left, jTh_left_n = self.get_jTc(indices, model_input, ground_truth)
+        jTc, jTc_n, jTh, jTh_n, jTh_left, jTh_left_n, nTh_left = self.get_jTc(indices, model_input, ground_truth)
 
         # NOTE: znear and zfar is important: distance of camera center to world origin
         cam_norm = jTc[..., 0:4, 3]
@@ -1034,7 +1040,7 @@ class Trainer(nn.Module):
             hA_left = self.model.hA_left_net(indices, model_input, None)
             hA_left_n = self.model.hA_left_net(model_input["inds_n"].to(device), model_input, None)
             hHand_left, hJoints_left = self.hand_wrapper_left(
-                None, hA_left, texture=self.model.uv_text, th_betas=self.model.hand_left_shape
+                nTh_left, hA_left, texture=self.model.uv_text, th_betas=self.model.hand_left_shape
             )
             jHand_left = mesh_utils.apply_transform(hHand_left, jTh_left)
             jJoints_left = mesh_utils.apply_transform(hJoints_left, jTh_left)
@@ -1042,13 +1048,14 @@ class Trainer(nn.Module):
                 jJoints_left, geom_utils.inverse_rt(mat=jTc, return_mat=True)
             )
             extras["jTh_left"] = jTh
+            extras["nTh_left"] = nTh_left
             extras["hand_left"] = jHand
             extras["jJoints_left"] = jJoints_left
             extras["iJoints_left"] = self.proj3d(cJoints_left, intrinsics)
             extras["cJoints_left"] = cJoints_left
 
             hHand_left_n, hJoints_left_n = self.hand_wrapper_left(
-                None, hA_left_n, texture=self.model.uv_text, th_betas=self.model.hand_left_shape
+                nTh_left, hA_left_n, texture=self.model.uv_text, th_betas=self.model.hand_left_shape
             )
             jJoints_left_n = mesh_utils.apply_transform(hJoints_left_n, jTh_left_n)
             cJoints_left_n = mesh_utils.apply_transform(
@@ -1251,8 +1258,8 @@ class Trainer(nn.Module):
             jHand.textures = mesh_utils.pad_texture(jHand, "blue")
         jHoi_gt = mesh_utils.join_scene([jHand, jObj_gt])
         if self.enable_bimanual:
-            hA_left, _, _, _ = self.sd_loss.model.hand_cond_left.grid2pose_sgd(sd_rtn["hand_pred_left"])
-            jHand_left, _ = self.hand_wrapper_left(rtn["nTh_left"][0], hA_left)
+            hA_left, _, _, nTh_left = self.sd_loss.model.hand_cond_left.grid2pose_sgd(sd_rtn["hand_pred_left"], is_left=True)
+            jHand_left, _ = self.hand_wrapper_left(nTh_left[0], hA_left)
             jHand_left.textures = mesh_utils.pad_texture(jHand_left, "blue")
             jHoi_gt = mesh_utils.join_scene([jHoi_gt, jHand_left])
 
