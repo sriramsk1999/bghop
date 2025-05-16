@@ -13,8 +13,9 @@
 
 ### Sample Grasp Synthesis
 
-| banana | ![image](docs/biman_banana_grasp.gif) | 
+| Object | SDS Iter 0 ------------ SDS Iter 500 ------------ SDS Iter 1000 |
 | --- | --- |
+| banana | ![image](docs/biman_banana_grasp.gif) | 
 | potted meat can | ![image](docs/biman_potted_meat_can_grasp.gif) | 
 
 
